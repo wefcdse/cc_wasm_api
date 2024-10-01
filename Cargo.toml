@@ -1,0 +1,12 @@
+[package]
+name = "cc_wasm_api"
+version = "0.1.0"
+edition = "2021"
+authors = ["wefcdse"]
+description = "Rust lib for CC wasm mod"
+repository = "https://github.com/wefcdse/cc_wasm_api"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+keywords = ["wasm", "minecraft"]
+
+[dependencies]
