@@ -43,6 +43,9 @@ mod other_type {
     use std::fmt::Display;
 
     use crate::lua_api::{next_import_type, Exportable, Importable, LuaError, LuaResult, Typed};
+
+    /// a Number type, can be both float or int.
+    /// impls [Importable] and [Exportable]
     #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
     pub enum Number {
         Int(i64),

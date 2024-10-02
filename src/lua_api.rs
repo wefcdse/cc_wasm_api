@@ -24,9 +24,17 @@ mod lua_result {
         }
     }
 }
+/// types which can be exported to computer craft
+///
+/// [i32], [i64], [f32], [f64], [String], ([Exportable], ...), [Option]<[Exportable]>, [[Exportable]], [Vec]<[Exportable]>
+/// and some other types impled [Exportable]
 pub trait Exportable {
     fn export(&self);
 }
+/// types which can be imported from computer craft's lua function call
+///
+/// [i32], [i64], [f32], [f64], [String], ([Importable], ...), [Option]<[Importable]>, [Vec]<[Importable]>
+/// and some other types impled [Importable]
 pub trait Importable: Sized {
     fn import() -> LuaResult<Self>;
 }

@@ -6,6 +6,11 @@ use crate::{
 pub trait ExportFunc<Args, Out, ImplType> {
     fn call(&self);
 }
+
+/// export functions to the `cc wasm` mod.
+/// usage: `export_funcs!((fn1, export_name1), (fn2, export_name2))`
+/// the function's arguments must be [Importable], and
+/// the function's return value must be [Exportable] or [LuaResult]<[Exportable]>
 #[macro_export]
 macro_rules! export_funcs {
     ($(($f:ident, $ename:ident)),*) => {

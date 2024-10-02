@@ -145,13 +145,16 @@ pub extern "C" fn tick() {
         }
     }
 }
+/// spawns a coroutine, which will be executed in tick function.
 pub fn spawn(fut: impl 'static + Future<Output = ()>) {
     COROUTINES.0.borrow_mut().push(Box::pin(fut));
 }
+/// returns the running coroutines.
 pub fn coroutines() -> usize {
     COROUTINES.borrow().len()
 }
 
+/// yield from the coroutine, allow the executor to run other coroutine.
 pub fn yield_now() -> impl Future<Output = ()> {
     struct Y(bool);
     impl Future for Y {
@@ -174,6 +177,7 @@ pub fn yield_now() -> impl Future<Output = ()> {
     Y(false)
 }
 
+/// sleep for some time.
 pub fn sleep(time: Duration) -> impl Future<Output = ()> {
     struct Sleep(Duration, Instant);
     impl Future for Sleep {
@@ -209,6 +213,8 @@ fn do_nothing_waker() -> Waker {
     // SAFETY: *const () is never derefed, and raw_waker_clone returns exactly same as w
     unsafe { Waker::from_raw(w) }
 }
+
+/// a simple channel which is not sync, but it can push and pop both in async and non-async.
 #[derive(Default)]
 pub struct UnsyncChannel<V> {
     cell: RefCell<VecDeque<V>>,
