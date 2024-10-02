@@ -158,6 +158,16 @@ mod io_impl_string {
             export_string(self);
         }
     }
+    impl Exportable for &str {
+        fn export(&self) {
+            export_string(self);
+        }
+    }
+    impl Exportable for &String {
+        fn export(&self) {
+            export_string(self);
+        }
+    }
     impl Importable for String {
         fn import() -> LuaResult<Self> {
             import_string()
@@ -228,6 +238,7 @@ fn _a() {
     stringify!();
 }
 mod io_impl_utils {
+
     use super::{next_import_type, Exportable, Importable, Typed};
 
     impl Importable for () {
@@ -292,4 +303,108 @@ mod io_impl_utils {
     impl_tuple!(T0, T1, T2, T3, T4, T5, T6, T7, T8, Y9, T10, T11);
     impl_tuple!(T0, T1, T2, T3, T4, T5, T6, T7, T8, Y9, T10, T11, T12);
     impl_tuple!(T0, T1, T2, T3, T4, T5, T6, T7, T8, Y9, T10, T11, T12, T13);
+
+    impl<T: Importable> Importable for Vec<T> {
+        fn import() -> super::LuaResult<Self> {
+            let mut v = Vec::new();
+            loop {
+                if next_import_type() != Typed::None {
+                    v.push(T::import()?);
+                } else {
+                    break;
+                }
+            }
+            Ok(v)
+        }
+    }
+    // impl<T: Importable + Default> Importable for [T; const { ("s", 1).1 + (1) }] {
+    //     fn import() -> super::LuaResult<Self> {
+    //         Ok([T::import()?, T::import()?])
+    //     }
+    // }
+    macro_rules! impl_arr {
+        ($($t:ident),*) => {
+            impl<T: Importable + Default> Importable for [T; const {$((stringify!($t), 1).1 + ) * 0}] {
+                fn import() -> super::LuaResult<Self> {
+                    Ok([$(
+                        $t::import()?
+                    ),*])
+                }
+            }
+        };
+    }
+    impl_arr!(T);
+    impl_arr!(T, T);
+    impl_arr!(T, T, T);
+    impl_arr!(T, T, T, T);
+    impl_arr!(T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
+    impl_arr!(
+        T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T
+    );
+    impl_arr!(
+        T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T
+    );
+    impl_arr!(
+        T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T
+    );
+    impl_arr!(
+        T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
+        T, T
+    );
+
+    impl<T: Exportable> Exportable for [T] {
+        fn export(&self) {
+            for i in self {
+                i.export();
+            }
+        }
+    }
+    impl<T: Exportable> Exportable for &[T] {
+        fn export(&self) {
+            (*self).export();
+        }
+    }
+    impl<T: Exportable> Exportable for Vec<T> {
+        fn export(&self) {
+            self[..].export();
+        }
+    }
+    impl<T: Exportable> Exportable for &Vec<T> {
+        fn export(&self) {
+            self[..].export();
+        }
+    }
+    impl<T: Exportable, const L: usize> Exportable for [T; L] {
+        fn export(&self) {
+            self[..].export();
+        }
+    }
+    impl<T: Exportable, const L: usize> Exportable for &[T; L] {
+        fn export(&self) {
+            self[..].export();
+        }
+    }
 }

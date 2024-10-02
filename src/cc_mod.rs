@@ -1,6 +1,9 @@
-use crate::lua_api::{failed, success, Exportable, Importable, LuaResult};
+use crate::{
+    lua_api::{failed, success, Exportable, Importable, LuaResult},
+    utils::{ImplResult, ImplValue},
+};
 
-pub trait ExportFunc<Args, Out> {
+pub trait ExportFunc<Args, Out, ImplType> {
     fn call(&self);
 }
 #[macro_export]
@@ -15,6 +18,7 @@ macro_rules! export_funcs {
 
             #[no_mangle]
             pub extern "C" fn export_func() {
+                $crate::lib_exports();
                 $(
                     $crate::lua_api::Exportable::export(::core::stringify!($ename));
                 )*
@@ -29,7 +33,7 @@ macro_rules! export_funcs {
 macro_rules! impl_export {
     ($($t:ident),*) => {
         impl<$($t: Importable,)* O: Exportable, F: Fn($($t),*) -> LuaResult<O>>
-            ExportFunc<($($t,)*), O> for F
+            ExportFunc<($($t,)*), O, ImplResult> for F
         {
             fn call(&self) {
                 let o: LuaResult<O> = (|| {
@@ -53,9 +57,35 @@ macro_rules! impl_export {
                 }
             }
         }
+
+         impl<$($t: Importable,)* O: Exportable, F: Fn($($t),*) -> O>
+            ExportFunc<($($t,)*), O, ImplValue> for F
+        {
+            fn call(&self) {
+                let o: LuaResult<O> = (|| {
+                    $(
+                        #[allow(non_snake_case)]
+                        let $t = $t::import()?;
+                    )*
+                    let out = self($($t),*);
+
+                    Ok(out)
+                })();
+                match o {
+                    Ok(o) => {
+                        success();
+                        o.export();
+                    }
+                    Err(err) => {
+                        failed();
+                        err.as_str().export();
+                    }
+                }
+            }
+        }
     };
 }
-impl<O: Exportable, F: Fn() -> LuaResult<O>> ExportFunc<(), O> for F {
+impl<O: Exportable, F: Fn() -> LuaResult<O>> ExportFunc<(), O, ImplResult> for F {
     fn call(&self) {
         match self() {
             Ok(o) => {
@@ -67,6 +97,13 @@ impl<O: Exportable, F: Fn() -> LuaResult<O>> ExportFunc<(), O> for F {
                 err.as_str().export();
             }
         }
+    }
+}
+impl<O: Exportable, F: Fn() -> O> ExportFunc<(), O, ImplValue> for F {
+    fn call(&self) {
+        let o = self();
+        success();
+        o.export();
     }
 }
 
