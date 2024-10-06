@@ -123,6 +123,20 @@ mod fut_blocker {
 type TaskCtx = SyncNonSync<RefCell<Vec<Pin<Box<dyn Future<Output = ()>>>>>>;
 static COROUTINES: TaskCtx = SyncNonSync(RefCell::new(Vec::new()));
 
+#[cfg(target_os = "unknown")]
+#[no_mangle]
+pub extern "C" fn tick() {
+    let mut workload = COROUTINES.0.borrow_mut();
+    let w = do_nothing_waker();
+    let mut c = Context::from_waker(&w);
+
+    // let new = workload.drain(..).into_iter().filter_map();
+    workload.retain_mut(|a| {
+        let pinned = a.as_mut();
+        pinned.poll(&mut c).is_pending()
+    });
+}
+#[cfg(not(target_os = "unknown"))]
 #[no_mangle]
 pub extern "C" fn tick() {
     let timeout = Option::<Number>::import()
@@ -155,6 +169,7 @@ pub fn coroutines() -> usize {
 }
 
 /// yield from the coroutine, allow the executor to run other coroutine.
+// #[cfg(not(feature = "eval"))]
 pub fn yield_now() -> impl Future<Output = ()> {
     struct Y(bool);
     impl Future for Y {
@@ -177,6 +192,8 @@ pub fn yield_now() -> impl Future<Output = ()> {
     Y(false)
 }
 
+#[cfg(not(target_os = "unknown"))]
+#[cfg_attr(docsrs, doc(cfg(not(target_os = "unknown"))))]
 /// sleep for some time.
 pub fn sleep(time: Duration) -> impl Future<Output = ()> {
     struct Sleep(Duration, Instant);

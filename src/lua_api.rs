@@ -70,6 +70,7 @@ pub(crate) mod lua_ffi {
             F64,
             Type,
             Object,
+            Nil,
             Error,
         }
         impl Typed {
@@ -83,6 +84,7 @@ pub(crate) mod lua_ffi {
                     5 => Typed::F64,
                     6 => Typed::Type,
                     7 => Typed::Object,
+                    8 => Typed::Nil,
                     _ => Typed::Error,
                 }
             }
@@ -247,10 +249,13 @@ fn _a() {
 }
 mod io_impl_utils {
 
-    use super::{next_import_type, Exportable, Importable, Typed};
+    use super::{abort_next_import, next_import_type, Exportable, Importable, Typed};
 
     impl Importable for () {
         fn import() -> super::LuaResult<Self> {
+            if next_import_type() == Typed::Nil {
+                abort_next_import();
+            }
             Ok(())
         }
     }
@@ -261,6 +266,9 @@ mod io_impl_utils {
     impl<T: Importable> Importable for Option<T> {
         fn import() -> super::LuaResult<Self> {
             if next_import_type() == Typed::None {
+                Ok(None)
+            } else if next_import_type() == Typed::Nil {
+                abort_next_import();
                 Ok(None)
             } else {
                 Ok(Some(Importable::import()?))

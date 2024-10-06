@@ -3,6 +3,9 @@
 use lua_api::Exportable;
 
 pub mod cc_mod;
+#[cfg(feature = "eval")]
+#[cfg_attr(docsrs, doc(cfg(feature = "eval")))]
+pub mod eval;
 pub mod lua_api;
 pub mod utils;
 pub mod debug {
@@ -20,4 +23,10 @@ pub mod coroutine;
 pub fn lib_exports() {
     #[cfg(feature = "coroutine")]
     "tick".export();
+
+    #[cfg(feature = "eval")]
+    "eval_result".export();
+
+    #[cfg(feature = "eval")]
+    "eval_string".export();
 }

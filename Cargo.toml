@@ -1,6 +1,6 @@
 [package]
 name = "cc_wasm_api"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 authors = ["wefcdse"]
 description = "Rust lib for CC wasm mod"
@@ -11,8 +11,9 @@ keywords = ["wasm", "minecraft"]
 
 [dependencies]
 [features]
-default = ["coroutine"]
+default = ["coroutine", "eval"]
 coroutine = []
+eval = []
 
 [package.metadata.docs.rs]
 # features = ["dependent", "build_script"]
