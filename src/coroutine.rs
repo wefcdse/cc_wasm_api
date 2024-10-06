@@ -122,10 +122,14 @@ mod fut_blocker {
 
 type TaskCtx = SyncNonSync<RefCell<Vec<Pin<Box<dyn Future<Output = ()>>>>>>;
 static COROUTINES: TaskCtx = SyncNonSync(RefCell::new(Vec::new()));
+static SPAWNED: TaskCtx = SyncNonSync(RefCell::new(Vec::new()));
 
 #[cfg(target_os = "unknown")]
 #[no_mangle]
 pub extern "C" fn tick() {
+    COROUTINES
+        .borrow_mut()
+        .append(SPAWNED.borrow_mut().as_mut());
     let mut workload = COROUTINES.0.borrow_mut();
     let w = do_nothing_waker();
     let mut c = Context::from_waker(&w);
@@ -139,6 +143,9 @@ pub extern "C" fn tick() {
 #[cfg(not(target_os = "unknown"))]
 #[no_mangle]
 pub extern "C" fn tick() {
+    COROUTINES
+        .borrow_mut()
+        .append(SPAWNED.borrow_mut().as_mut());
     let timeout = Option::<Number>::import()
         .unwrap_or(None)
         .unwrap_or(Number::Int(0))
@@ -161,7 +168,7 @@ pub extern "C" fn tick() {
 }
 /// spawns a coroutine, which will be executed in tick function.
 pub fn spawn(fut: impl 'static + Future<Output = ()>) {
-    COROUTINES.0.borrow_mut().push(Box::pin(fut));
+    SPAWNED.borrow_mut().push(Box::pin(fut));
 }
 /// returns the running coroutines.
 pub fn coroutines() -> usize {
