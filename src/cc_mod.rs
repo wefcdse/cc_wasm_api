@@ -2,9 +2,14 @@ use crate::{
     lua_api::{failed, success, Exportable, Importable, LuaResult},
     utils::{ImplResult, ImplValue},
 };
-
-pub trait ExportFunc<Args, Out, ImplType> {
-    fn call(&self);
+/// used to run this function with cc_wasm mod
+/// # Safety
+/// should not be manually impled
+pub unsafe trait ExportFunc<Args, Out, ImplType> {
+    /// used to run this function with cc_wasm mod
+    /// # Safety
+    /// should not be manually called
+    unsafe fn call(&self);
 }
 
 /// export functions to the `cc wasm` mod.
@@ -23,7 +28,7 @@ macro_rules! export_funcs {
                 #[no_mangle]
                 pub extern "C" fn $ename(){
                     use super::$f;
-                    $crate::cc_mod::ExportFunc::call(&$f);
+                    unsafe { $crate::cc_mod::ExportFunc::call(&$f); }
                 }
             )*
 
@@ -45,7 +50,7 @@ macro_rules! export_funcs {
                 #[no_mangle]
                 pub extern "C" fn $f(){
                     use super::$f;
-                    $crate::cc_mod::ExportFunc::call(&$f);
+                    unsafe { $crate::cc_mod::ExportFunc::call(&$f); }
                 }
             )*
 
@@ -67,10 +72,10 @@ macro_rules! export_funcs {
 // }
 macro_rules! impl_export {
     ($($t:ident),*) => {
-        impl<$($t: Importable,)* O: Exportable, F: Fn($($t),*) -> LuaResult<O>>
+        unsafe impl<$($t: Importable,)* O: Exportable, F: Fn($($t),*) -> LuaResult<O>>
             ExportFunc<($($t,)*), O, ImplResult> for F
         {
-            fn call(&self) {
+            unsafe fn call(&self) {
                 let o: LuaResult<O> = (|| {
                     $(
                         #[allow(non_snake_case)]
@@ -93,10 +98,10 @@ macro_rules! impl_export {
             }
         }
 
-         impl<$($t: Importable,)* O: Exportable, F: Fn($($t),*) -> O>
+        unsafe impl<$($t: Importable,)* O: Exportable, F: Fn($($t),*) -> O>
             ExportFunc<($($t,)*), O, ImplValue> for F
         {
-            fn call(&self) {
+            unsafe fn call(&self) {
                 let o: LuaResult<O> = (|| {
                     $(
                         #[allow(non_snake_case)]
@@ -120,8 +125,8 @@ macro_rules! impl_export {
         }
     };
 }
-impl<O: Exportable, F: Fn() -> LuaResult<O>> ExportFunc<(), O, ImplResult> for F {
-    fn call(&self) {
+unsafe impl<O: Exportable, F: Fn() -> LuaResult<O>> ExportFunc<(), O, ImplResult> for F {
+    unsafe fn call(&self) {
         match self() {
             Ok(o) => {
                 unsafe { success() };
@@ -134,8 +139,8 @@ impl<O: Exportable, F: Fn() -> LuaResult<O>> ExportFunc<(), O, ImplResult> for F
         }
     }
 }
-impl<O: Exportable, F: Fn() -> O> ExportFunc<(), O, ImplValue> for F {
-    fn call(&self) {
+unsafe impl<O: Exportable, F: Fn() -> O> ExportFunc<(), O, ImplValue> for F {
+    unsafe fn call(&self) {
         let o = self();
         unsafe { success() };
         o.export();

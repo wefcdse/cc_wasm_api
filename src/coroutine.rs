@@ -358,7 +358,7 @@ pub extern "C" fn tick() {
 }
 #[cfg(not(target_os = "unknown"))]
 #[no_mangle]
-pub extern "C" fn tick() {
+extern "C" fn tick() {
     COROUTINES
         .borrow_mut()
         .append(SPAWNED.borrow_mut().as_mut());
