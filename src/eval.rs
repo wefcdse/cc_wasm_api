@@ -60,6 +60,7 @@ impl<'a, O: Importable + Unpin> Future for Eval<'a, O> {
     }
 }
 
+/// run a lua script in the lua context
 pub fn eval<O: Importable + Unpin + 'static>(s: &str) -> impl '_ + Future<Output = LuaResult<O>> {
     Eval {
         data: Some(s),

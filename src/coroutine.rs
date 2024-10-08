@@ -25,6 +25,43 @@ mod tick_sync {
 
     use super::sleep;
     /// limit the corountine's loop to run exactly once every tick.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use cc_wasm_api::prelude::*;
+    /// fn init(){
+    ///     TickSyncer::spawn_handle_coroutine();
+    ///     async {
+    ///         let mut ts = TickSyncer::new();
+    ///         loop{
+    ///             // code here will run once every tick
+    ///             ts.sync().await;
+    ///         }
+    ///     }.spawn();
+    ///
+    ///     async {
+    ///         let mut ts = TickSyncer::new();
+    ///         // if not disable sync will cause other coroutines to wait for this sleep to finish
+    ///         let no_sync = ts.no_sync();
+    ///         sleep(Duration::from_sec(5)).await;
+    ///         drop(no_sync);
+    ///         loop{
+    ///             // code here will run once every tick
+    ///             ts.sync().await;
+    ///         }
+    ///     }.spawn();
+    ///
+    ///     async {
+    ///         let mut ts = TickSyncer::new();
+    ///         ts.sleep(Duration::from_sec(5)).await;
+    ///         loop{
+    ///             // code here will run once every tick
+    ///             ts.sync().await;
+    ///         }
+    ///     }.spawn();
+    /// }
+    ///
+    /// ```
     pub struct TickSyncer;
     impl TickSyncer {
         #[allow(clippy::new_without_default)]
@@ -56,7 +93,7 @@ mod tick_sync {
 
         /// handle the sync
         /// # Safety
-        /// should be called every tick in one and only one corountine which don't subscribed TickSyncer
+        /// should be called every tick in one and only one corountine which didn't subscribed TickSyncer
         pub unsafe fn handle_sync() -> impl Future<Output = ()> {
             tick_sync_handle()
         }

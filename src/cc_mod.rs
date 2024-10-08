@@ -8,7 +8,9 @@ pub trait ExportFunc<Args, Out, ImplType> {
 }
 
 /// export functions to the `cc wasm` mod.
-/// usage: `export_funcs!((fn1, export_name1), (fn2, export_name2))`
+///
+/// usage: `export_funcs!((fn1, export_name1), (fn2, export_name2))` or `export_funcs!(fn1, fn2, fn3)`
+///
 /// the function's arguments must be [Importable], and
 /// the function's return value must be [Exportable] or [LuaResult]<[Exportable]>
 #[macro_export]
@@ -27,7 +29,7 @@ macro_rules! export_funcs {
 
             #[no_mangle]
             pub extern "C" fn export_func() {
-                $crate::lib_exports();
+                unsafe { $crate::lib_exports(); }
                 $(
                     $crate::lua_api::Exportable::export(::core::stringify!($ename));
                 )*
@@ -37,26 +39,26 @@ macro_rules! export_funcs {
     };
     ($($f:ident),*) => {
         const _:() = {
-         mod inner{
-             $(
+        mod inner{
+            $(
 
-                 #[no_mangle]
-                 pub extern "C" fn $f(){
-                     use super::$f;
-                     $crate::cc_mod::ExportFunc::call(&$f);
-                 }
-             )*
+                #[no_mangle]
+                pub extern "C" fn $f(){
+                    use super::$f;
+                    $crate::cc_mod::ExportFunc::call(&$f);
+                }
+            )*
 
-             #[no_mangle]
-             pub extern "C" fn export_func() {
-                 $crate::lib_exports();
-                 $(
-                     $crate::lua_api::Exportable::export(::core::stringify!($f));
-                 )*
-             }};
-         };
+            #[no_mangle]
+            pub extern "C" fn export_func() {
+                unsafe { $crate::lib_exports(); }
+                $(
+                    $crate::lua_api::Exportable::export(::core::stringify!($f));
+                )*
+            }};
+        };
 
-     };
+    };
 
 }
 // #[no_mangle]
@@ -80,11 +82,11 @@ macro_rules! impl_export {
                 })();
                 match o {
                     Ok(o) => {
-                        success();
+                        unsafe { success(); };
                         o.export();
                     }
                     Err(err) => {
-                        failed();
+                        unsafe { failed(); };
                         err.as_str().export();
                     }
                 }
@@ -106,11 +108,11 @@ macro_rules! impl_export {
                 })();
                 match o {
                     Ok(o) => {
-                        success();
+                        unsafe { success(); };
                         o.export();
                     }
                     Err(err) => {
-                        failed();
+                        unsafe { failed() };
                         err.as_str().export();
                     }
                 }
@@ -122,11 +124,11 @@ impl<O: Exportable, F: Fn() -> LuaResult<O>> ExportFunc<(), O, ImplResult> for F
     fn call(&self) {
         match self() {
             Ok(o) => {
-                success();
+                unsafe { success() };
                 o.export();
             }
             Err(err) => {
-                failed();
+                unsafe { failed() };
                 err.as_str().export();
             }
         }
@@ -135,7 +137,7 @@ impl<O: Exportable, F: Fn() -> LuaResult<O>> ExportFunc<(), O, ImplResult> for F
 impl<O: Exportable, F: Fn() -> O> ExportFunc<(), O, ImplValue> for F {
     fn call(&self) {
         let o = self();
-        success();
+        unsafe { success() };
         o.export();
     }
 }

@@ -161,17 +161,30 @@ pub(crate) mod lua_ffi {
     pub fn addrof<T: ?Sized>(s: *const T) -> i32 {
         s as *const () as usize as i32
     }
-    pub fn abort_next_import() {
+    /// abort a import
+    /// # Safety
+    /// should be called carefully, otherwise this will cause weird behavior
+    pub unsafe fn abort_next_import() {
         unsafe {
             ffi::abort_next_import();
         }
     }
-    pub fn success() {
+    /// mark the function to be successfully runned
+    /// # Safety
+    /// should only be called at the end of a exported function.
+    ///
+    /// should not be manually called
+    pub unsafe fn success() {
         unsafe {
             ffi::success();
         }
     }
-    pub fn failed() {
+    /// mark the function to be failed
+    /// # Safety
+    /// should only be called at the end of a exported function.
+    ///
+    /// should not be manually called
+    pub unsafe fn failed() {
         unsafe {
             ffi::failed();
         }
@@ -324,7 +337,7 @@ mod io_impl_utils {
     impl Importable for () {
         fn import() -> super::LuaResult<Self> {
             if next_import_type() == Typed::Nil {
-                abort_next_import();
+                unsafe { abort_next_import() };
             }
             Ok(())
         }
@@ -338,7 +351,7 @@ mod io_impl_utils {
             if next_import_type() == Typed::None {
                 Ok(None)
             } else if next_import_type() == Typed::Nil {
-                abort_next_import();
+                unsafe { abort_next_import() };
                 Ok(None)
             } else {
                 Ok(Some(Importable::import()?))

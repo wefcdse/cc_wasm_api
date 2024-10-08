@@ -33,8 +33,12 @@ pub mod debug {
 #[cfg_attr(docsrs, doc(cfg(feature = "coroutine")))]
 pub mod coroutine;
 
-/// used in [export_funcs], this should not be called
-pub fn lib_exports() {
+/// used in [export_funcs], should not be called otherwise
+///
+/// # Safety
+/// this function should not be manually called
+///
+pub unsafe fn lib_exports() {
     #[cfg(feature = "coroutine")]
     "tick".export();
 
