@@ -22,10 +22,10 @@ mod tick_sync {
     use std::{cell::Cell, future::Future, task::Poll};
 
     use crate::{coroutine::CoroutineSpawn as _, eval::yield_lua, utils::SyncNonSync};
-
     /// limit the corountine's loop to run exactly once every tick.
     pub struct TickSyncer;
     impl TickSyncer {
+        #[allow(clippy::new_without_default)]
         pub fn new() -> Self {
             subscribe();
             Self
@@ -34,6 +34,9 @@ mod tick_sync {
         pub fn sync(&self) -> impl '_ + Future<Output = ()> {
             tick_sync()
         }
+        /// handle the sync
+        /// # Safety
+        /// should be called every tick in one and only one corountine which don't subscribed TickSyncer
         pub unsafe fn handle_sync() -> impl Future<Output = ()> {
             tick_sync_handle()
         }
