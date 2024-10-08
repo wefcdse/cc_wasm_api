@@ -53,9 +53,14 @@ pub use lua_ffi::ffi::Typed;
 pub use lua_ffi::next_import_type;
 pub use lua_ffi::{failed, success};
 pub(crate) mod lua_ffi {
+
     use ffi::Typed;
 
+    use super::{LuaError, LuaResult};
+
     pub(crate) mod ffi {
+        use std::fmt::Display;
+
         use crate::lua_api::{lua_result::LuaError, Importable};
 
         use super::next_import_type;
@@ -71,6 +76,7 @@ pub(crate) mod lua_ffi {
             Type,
             Object,
             Nil,
+            Bool,
             Error,
         }
         impl Typed {
@@ -85,8 +91,28 @@ pub(crate) mod lua_ffi {
                     6 => Typed::Type,
                     7 => Typed::Object,
                     8 => Typed::Nil,
+                    9 => Typed::Bool,
                     _ => Typed::Error,
                 }
+            }
+        }
+        impl Display for Typed {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let msg = match self {
+                    Typed::None => "none",
+                    Typed::I32 => "i32",
+                    Typed::I64 => "i64",
+                    Typed::String => "string",
+                    Typed::F32 => "f32",
+                    Typed::F64 => "f64",
+                    Typed::Type => "type",
+                    Typed::Object => "table",
+                    Typed::Nil => "nil",
+                    Typed::Bool => "bool",
+                    Typed::Error => "error type",
+                };
+                write!(f, "{}", msg)?;
+                Ok(())
             }
         }
         impl Importable for Typed {
@@ -119,6 +145,9 @@ pub(crate) mod lua_ffi {
             pub fn import_f64() -> f64;
             pub fn export_f64(data: f64);
 
+            pub fn import_bool() -> i32;
+            pub fn export_bool(data: i32);
+
             pub fn abort_next_import();
             pub fn success();
             pub fn failed();
@@ -145,14 +174,21 @@ pub(crate) mod lua_ffi {
             ffi::failed();
         }
     }
+    pub fn assert_type(t: Typed) -> LuaResult<()> {
+        let next = next_import_type();
+        if t == next {
+            Ok(())
+        } else {
+            Err(LuaError::from_string(format!("expect {}, got {}", t, next)))
+        }
+    }
 }
 
 mod io_impl_string {
     use super::{
         lua_ffi::{
-            addrof,
+            addrof, assert_type,
             ffi::{self, Typed},
-            next_import_type,
         },
         lua_result::LuaError,
         Exportable, Importable, LuaResult,
@@ -190,9 +226,10 @@ mod io_impl_string {
         }
     }
     fn import_string() -> LuaResult<String> {
-        if next_import_type() != Typed::String {
-            Err(LuaError::from_str("not receiving String"))?;
-        }
+        // if next_import_type() != Typed::String {
+        //     Err(LuaError::from_str("not receiving String"))?;
+        // }
+        assert_type(Typed::String)?;
 
         let mut a = vec![0u8; unsafe { ffi::import_string_length() } as usize];
         unsafe {
@@ -205,27 +242,24 @@ mod io_impl_string {
 
 mod io_impl_number {
     use super::{
-        lua_ffi::{
-            ffi::{
-                export_f32, export_f64, export_i32, export_i64, import_f32, import_f64, import_i32,
-                import_i64, Typed,
-            },
-            next_import_type,
+        lua_ffi::ffi::{
+            export_f32, export_f64, export_i32, export_i64, import_f32, import_f64, import_i32,
+            import_i64, Typed,
         },
-        lua_result::LuaError,
         Exportable, Importable,
     };
-
+    use crate::lua_api::lua_ffi::assert_type;
     macro_rules! impl_for {
         ($t:ty, $typname:ident, $if:ident, $of:ident) => {
             impl Importable for $t {
                 fn import() -> super::LuaResult<Self> {
-                    if next_import_type() != Typed::$typname {
-                        return Err(LuaError::from_str(concat!(
-                            "not receiving ",
-                            stringify!($t)
-                        )))?;
-                    }
+                    // if next_import_type() != Typed::$typname {
+                    //     return Err(LuaError::from_str(concat!(
+                    //         "not receiving ",
+                    //         stringify!($t)
+                    //     )))?;
+                    // }
+                    assert_type(Typed::$typname)?;
                     Ok(unsafe { $if() })
                 }
             }
@@ -421,6 +455,30 @@ mod io_impl_utils {
     impl<T: Exportable, const L: usize> Exportable for &[T; L] {
         fn export(&self) {
             self[..].export();
+        }
+    }
+}
+
+mod io_impl_bool {
+    use super::{
+        lua_ffi::{
+            assert_type,
+            ffi::{export_bool, import_bool},
+        },
+        Exportable, Importable, Typed,
+    };
+
+    impl Importable for bool {
+        fn import() -> super::LuaResult<Self> {
+            assert_type(Typed::Bool)?;
+            Ok((unsafe { import_bool() }) != 0)
+        }
+    }
+    impl Exportable for bool {
+        fn export(&self) {
+            unsafe {
+                export_bool(if *self { 1 } else { 0 });
+            }
         }
     }
 }

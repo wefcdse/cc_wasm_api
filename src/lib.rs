@@ -2,6 +2,19 @@
 
 use lua_api::Exportable;
 
+pub mod prelude {
+    #[cfg(feature = "coroutine")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "coroutine")))]
+    pub use crate::coroutine::{
+        sleep, spawn, yield_now, CoroutineSpawn, TickSyncer, UnsyncChannel,
+    };
+    #[cfg(feature = "eval")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "eval")))]
+    pub use crate::eval::eval;
+    pub use crate::export_funcs;
+    pub use crate::lua_api::{Exportable, Importable, LuaResult};
+}
+
 pub mod cc_mod;
 #[cfg(feature = "eval")]
 #[cfg_attr(docsrs, doc(cfg(feature = "eval")))]

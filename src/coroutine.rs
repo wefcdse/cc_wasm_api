@@ -1,5 +1,5 @@
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::VecDeque,
     future::Future,
     mem::{self, ManuallyDrop},
@@ -10,27 +10,167 @@ use std::{
     time::{Duration, Instant},
 };
 
+use fut_blocker::Stopper;
+
 use crate::{
     lua_api::Importable,
     utils::{Number, SyncNonSync},
 };
 
-#[allow(unused)]
-mod fut_blocker {
-    use std::{cell::Cell, future::Future, task::Context};
+pub use tick_sync::TickSyncer;
+mod tick_sync {
+    use std::{cell::Cell, future::Future, task::Poll};
 
-    pub struct Stopper(Cell<bool>);
-    impl Default for Stopper {
-        fn default() -> Self {
-            Self::new()
+    use crate::{coroutine::CoroutineSpawn as _, eval::yield_lua, utils::SyncNonSync};
+
+    /// limit the corountine's loop to run exactly once every tick.
+    pub struct TickSyncer;
+    impl TickSyncer {
+        pub fn new() -> Self {
+            subscribe();
+            Self
+        }
+        /// limit the corountine's loop to run exactly once every tick.
+        pub fn sync(&self) -> impl '_ + Future<Output = ()> {
+            tick_sync()
+        }
+        pub unsafe fn handle_sync() -> impl Future<Output = ()> {
+            tick_sync_handle()
+        }
+        pub fn spawn_handle_coroutine() {
+            static RUNNED: SyncNonSync<Cell<bool>> = SyncNonSync(Cell::new(false));
+
+            if !RUNNED.get() {
+                async {
+                    loop {
+                        unsafe { TickSyncer::handle_sync() }.await;
+                        yield_lua().await;
+                    }
+                }
+                .spawn();
+                RUNNED.set(true);
+            }
         }
     }
-    impl Stopper {
-        pub const fn new() -> Self {
-            Self(Cell::new(false))
+    impl Drop for TickSyncer {
+        fn drop(&mut self) {
+            desubscribe();
         }
-        pub const fn stopper(&self) -> impl '_ + Fn() -> bool {
+    }
+
+    #[derive(Debug, Default)]
+    struct TickSyncCtx {
+        subscribed: Cell<usize>,
+        epoch: Cell<usize>,
+        runned_this_epoch: Cell<usize>,
+    }
+
+    static TICK_SYNCER: SyncNonSync<TickSyncCtx> = SyncNonSync(TickSyncCtx {
+        subscribed: Cell::new(0),
+        epoch: Cell::new(0),
+        runned_this_epoch: Cell::new(0),
+    });
+    fn subscribe() {
+        TICK_SYNCER.subscribed.set(TICK_SYNCER.subscribed.get() + 1);
+    }
+    fn desubscribe() {
+        TICK_SYNCER.subscribed.set(TICK_SYNCER.subscribed.get() - 1);
+    }
+    fn increase_epoch() {
+        TICK_SYNCER.epoch.set(TICK_SYNCER.epoch.get() + 1);
+    }
+    fn clear_run() {
+        TICK_SYNCER.runned_this_epoch.set(0);
+    }
+    fn increase_run() {
+        TICK_SYNCER
+            .runned_this_epoch
+            .set(TICK_SYNCER.runned_this_epoch.get() + 1);
+    }
+    fn epoch() -> usize {
+        TICK_SYNCER.epoch.get()
+    }
+    fn tick_sync_handle() -> impl Future<Output = ()> {
+        struct TickSyncHandle;
+        impl Future for TickSyncHandle {
+            type Output = ();
+
+            fn poll(
+                self: std::pin::Pin<&mut Self>,
+                cx: &mut std::task::Context<'_>,
+            ) -> Poll<Self::Output> {
+                let runned = TICK_SYNCER.runned_this_epoch.get();
+                let subscribed = TICK_SYNCER.subscribed.get();
+                if runned >= subscribed {
+                    clear_run();
+                    increase_epoch();
+                    Poll::Ready(())
+                } else {
+                    cx.waker().wake_by_ref();
+                    Poll::Pending
+                }
+            }
+        }
+        TickSyncHandle
+    }
+    fn tick_sync() -> impl Future<Output = ()> {
+        #[derive(Debug, Clone, Copy)]
+        struct TickSync {
+            epoch: usize,
+            runned: bool,
+        }
+        impl Future for TickSync {
+            type Output = ();
+
+            fn poll(
+                self: std::pin::Pin<&mut Self>,
+                cx: &mut std::task::Context<'_>,
+            ) -> Poll<Self::Output> {
+                let unpin = self.get_mut();
+
+                if unpin.epoch < epoch() {
+                    Poll::Ready(())
+                } else {
+                    if !unpin.runned {
+                        increase_run();
+                        unpin.runned = true;
+                    }
+                    cx.waker().wake_by_ref();
+                    Poll::Pending
+                }
+            }
+        }
+
+        TickSync {
+            epoch: epoch(),
+            runned: false,
+        }
+    }
+}
+
+#[allow(unused)]
+mod fut_blocker {
+    use std::{cell::Cell, future::Future, rc::Rc, task::Context};
+
+    #[derive(Debug, Clone)]
+    pub struct Stopper(Rc<Cell<bool>>);
+    // impl Default for Stopper {
+    //     fn default() -> Self {
+    //         Self::new()
+    //     }
+    // }
+    impl Stopper {
+        pub(crate) fn new() -> Self {
+            Self(Rc::new(Cell::new(false)))
+        }
+        pub(crate) const fn stopper(&self) -> impl '_ + Fn() -> bool {
             || self.0.get()
+        }
+        pub(crate) fn stoped(&self) -> bool {
+            self.0.get()
+        }
+        pub(crate) fn not_stopped(&self) -> bool {
+            !self.0.get()
         }
         pub fn stop(&self) {
             self.0.set(true);
@@ -120,9 +260,25 @@ mod fut_blocker {
     }
 }
 
-type TaskCtx = SyncNonSync<RefCell<Vec<Pin<Box<dyn Future<Output = ()>>>>>>;
+type TaskCtx = SyncNonSync<RefCell<Vec<Task>>>;
+struct Task {
+    fut: Pin<Box<dyn Future<Output = ()>>>,
+    stopper: Stopper,
+}
+
 static COROUTINES: TaskCtx = SyncNonSync(RefCell::new(Vec::new()));
 static SPAWNED: TaskCtx = SyncNonSync(RefCell::new(Vec::new()));
+static YIELD_COUNTER: SyncNonSync<Cell<usize>> = SyncNonSync(Cell::new(0));
+static ACTIVE_COROUTINE_COUNT: SyncNonSync<Cell<usize>> = SyncNonSync(Cell::new(0));
+fn increase_yield_counter() {
+    YIELD_COUNTER.set(YIELD_COUNTER.get() + 1);
+}
+pub fn clear_yield_counter() {
+    YIELD_COUNTER.set(0);
+}
+pub fn yield_counter() -> usize {
+    YIELD_COUNTER.get()
+}
 
 #[cfg(target_os = "unknown")]
 #[no_mangle]
@@ -137,7 +293,7 @@ pub extern "C" fn tick() {
     // let new = workload.drain(..).into_iter().filter_map();
     workload.retain_mut(|a| {
         let pinned = a.as_mut();
-        pinned.poll(&mut c).is_pending()
+        pinned.poll(&mut c).is_pending() && a.stopper.not_stopped()
     });
 }
 #[cfg(not(target_os = "unknown"))]
@@ -158,21 +314,53 @@ pub extern "C" fn tick() {
     // let new = workload.drain(..).into_iter().filter_map();
     loop {
         workload.retain_mut(|a| {
-            let pinned = a.as_mut();
-            pinned.poll(&mut c).is_pending()
+            let pinned = a.fut.as_mut();
+            pinned.poll(&mut c).is_pending() && a.stopper.not_stopped()
         });
         if start.elapsed().as_secs_f64() >= timeout {
             break;
         }
     }
+    ACTIVE_COROUTINE_COUNT.set(workload.len());
 }
 /// spawns a coroutine, which will be executed in tick function.
-pub fn spawn(fut: impl 'static + Future<Output = ()>) {
-    SPAWNED.borrow_mut().push(Box::pin(fut));
+pub trait CoroutineSpawn {
+    /// spawns a coroutine, which will be executed in tick function.
+    fn spawn(self) -> Stopper;
+}
+impl<F: 'static + Future> CoroutineSpawn for F {
+    fn spawn(self) -> Stopper {
+        spawn(self)
+    }
+}
+
+/// spawns a coroutine, which will be executed in tick function.
+pub fn spawn(fut: impl 'static + Future) -> Stopper {
+    struct IgnoreRtnFut<F: Future>(F);
+    impl<F: Future> Future for IgnoreRtnFut<F> {
+        type Output = ();
+
+        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+            // SAFETY: self is pinned and self.0 is also pinned
+            let pinned = unsafe { self.map_unchecked_mut(|f| &mut f.0) };
+            match pinned.poll(cx) {
+                Poll::Ready(_) => Poll::Ready(()),
+                Poll::Pending => Poll::Pending,
+            }
+        }
+    }
+    let stopper = Stopper::new();
+    let task = Task {
+        fut: Box::pin(IgnoreRtnFut(fut)),
+        stopper: stopper.clone(),
+    };
+
+    SPAWNED.borrow_mut().push(task);
+    stopper
 }
 /// returns the running coroutines.
 pub fn coroutines() -> usize {
-    COROUTINES.borrow().len()
+    ACTIVE_COROUTINE_COUNT.get()
 }
 
 /// yield from the coroutine, allow the executor to run other coroutine.
@@ -192,6 +380,7 @@ pub fn yield_now() -> impl Future<Output = ()> {
             } else {
                 self.0 = true;
                 cx.waker().wake_by_ref();
+                increase_yield_counter();
                 core::task::Poll::Pending
             }
         }

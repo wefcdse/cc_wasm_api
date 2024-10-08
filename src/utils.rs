@@ -104,6 +104,7 @@ mod other_type {
                 Typed::Object => Err(LuaError::from_str("receiving obj")),
                 Typed::Error => Err(LuaError::from_str("receiving error type")),
                 Typed::Nil => Err(LuaError::from_str("receiving nil")),
+                Typed::Bool => Err(LuaError::from_str("receiving bool")),
             }
         }
     }
