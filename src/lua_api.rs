@@ -148,6 +148,8 @@ pub(crate) mod lua_ffi {
             pub fn import_bool() -> i32;
             pub fn export_bool(data: i32);
 
+            pub fn export_nil();
+
             pub fn abort_next_import();
             pub fn success();
             pub fn failed();
@@ -180,6 +182,40 @@ pub(crate) mod lua_ffi {
             Ok(())
         } else {
             Err(LuaError::from_string(format!("expect {}, got {}", t, next)))
+        }
+    }
+}
+
+pub mod nil {
+    use std::fmt::Display;
+
+    use super::{lua_ffi::ffi::export_nil, Exportable, Importable};
+
+    /// a lua nil value
+    ///
+    /// # Difference with `()` and [Option::None]
+    /// when `Nil` is return value, it will be a `nil` value, but `()` and [Option::None]
+    /// will be simply nothing
+    ///
+    #[derive(Debug, Clone, Copy, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct Nil;
+    impl Display for Nil {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "nil")?;
+            Ok(())
+        }
+    }
+    impl Importable for Nil {
+        fn import() -> super::LuaResult<Self> {
+            <()>::import()?;
+            Ok(Self)
+        }
+    }
+    impl Exportable for Nil {
+        fn export(&self) {
+            unsafe {
+                export_nil();
+            }
         }
     }
 }

@@ -14,12 +14,16 @@ pub trait ExportFunc<Args, Out, ImplType> {
 #[macro_export]
 macro_rules! export_funcs {
     ($(($f:ident, $ename:ident)),*) => {
-       const _:() = { $(
-            #[no_mangle]
-            pub extern "C" fn $ename(){
-                $crate::cc_mod::ExportFunc::call(&$f);
-            }
-        )*
+       const _:() = {
+        mod inner{
+            $(
+
+                #[no_mangle]
+                pub extern "C" fn $ename(){
+                    use super::$f;
+                    $crate::cc_mod::ExportFunc::call(&$f);
+                }
+            )*
 
             #[no_mangle]
             pub extern "C" fn export_func() {
@@ -28,8 +32,32 @@ macro_rules! export_funcs {
                     $crate::lua_api::Exportable::export(::core::stringify!($ename));
                 )*
             }};
+        };
 
     };
+    ($($f:ident),*) => {
+        const _:() = {
+         mod inner{
+             $(
+
+                 #[no_mangle]
+                 pub extern "C" fn $f(){
+                     use super::$f;
+                     $crate::cc_mod::ExportFunc::call(&$f);
+                 }
+             )*
+
+             #[no_mangle]
+             pub extern "C" fn export_func() {
+                 $crate::lib_exports();
+                 $(
+                     $crate::lua_api::Exportable::export(::core::stringify!($f));
+                 )*
+             }};
+         };
+
+     };
+
 }
 // #[no_mangle]
 // pub extern "C" fn export_func() {

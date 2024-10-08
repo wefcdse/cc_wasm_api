@@ -117,3 +117,35 @@ mod other_type {
         }
     }
 }
+
+pub mod either {
+    use crate::{
+        lua_api::LuaError,
+        prelude::{Exportable, Importable},
+    };
+
+    #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+    pub enum Either<First, Second> {
+        First(First),
+        Second(Second),
+    }
+    impl<L: Exportable, R: Exportable> Exportable for Either<L, R> {
+        fn export(&self) {
+            match self {
+                Either::First(l) => l.export(),
+                Either::Second(r) => r.export(),
+            }
+        }
+    }
+    impl<L: Importable, R: Importable> Importable for Either<L, R> {
+        fn import() -> crate::prelude::LuaResult<Self> {
+            if let Ok(v) = L::import() {
+                Ok(Self::First(v))
+            } else if let Ok(v) = R::import() {
+                Ok(Self::Second(v))
+            } else {
+                Err(LuaError::from_str("neither of the value matches"))
+            }
+        }
+    }
+}

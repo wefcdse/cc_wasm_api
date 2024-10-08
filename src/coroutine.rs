@@ -19,9 +19,11 @@ use crate::{
 
 pub use tick_sync::TickSyncer;
 mod tick_sync {
-    use std::{cell::Cell, future::Future, task::Poll};
+    use std::{cell::Cell, future::Future, task::Poll, time::Duration};
 
     use crate::{coroutine::CoroutineSpawn as _, eval::yield_lua, utils::SyncNonSync};
+
+    use super::sleep;
     /// limit the corountine's loop to run exactly once every tick.
     pub struct TickSyncer;
     impl TickSyncer {
@@ -31,9 +33,27 @@ mod tick_sync {
             Self
         }
         /// limit the corountine's loop to run exactly once every tick.
-        pub fn sync(&self) -> impl '_ + Future<Output = ()> {
+        pub fn sync(&mut self) -> impl '_ + Future<Output = ()> {
             tick_sync()
         }
+
+        /// temporarily disable sync, allow other corountine to run
+        pub fn no_sync(&mut self) -> impl '_ + Drop {
+            struct NoSync;
+            impl Drop for NoSync {
+                fn drop(&mut self) {
+                    subscribe();
+                }
+            }
+            desubscribe();
+            NoSync
+        }
+        pub async fn sleep(&mut self, dur: Duration) {
+            desubscribe();
+            sleep(dur).await;
+            subscribe();
+        }
+
         /// handle the sync
         /// # Safety
         /// should be called every tick in one and only one corountine which don't subscribed TickSyncer
