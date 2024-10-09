@@ -19,7 +19,7 @@ use crate::{
 
 pub use tick_sync::TickSyncer;
 mod tick_sync {
-    use std::{cell::Cell, future::Future, task::Poll, time::Duration};
+    use std::{cell::Cell, fmt::Debug, future::Future, task::Poll, time::Duration};
 
     use crate::{coroutine::CoroutineSpawn as _, eval::yield_lua, utils::SyncNonSync};
 
@@ -173,7 +173,7 @@ mod tick_sync {
         }
         TickSyncHandle
     }
-    fn tick_sync() -> impl Future<Output = ()> {
+    fn tick_sync() -> impl Future<Output = ()> + Debug {
         #[derive(Debug, Clone, Copy)]
         struct TickSync {
             epoch: usize,

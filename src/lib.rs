@@ -10,7 +10,7 @@ pub mod prelude {
     };
     #[cfg(feature = "eval")]
     #[cfg_attr(docsrs, doc(cfg(feature = "eval")))]
-    pub use crate::eval::eval;
+    pub use crate::eval::{eval, exec};
     pub use crate::export_funcs;
     pub use crate::lua_api::{nil::Nil, Exportable, Importable, LuaResult};
     pub use crate::utils::{either::Either, Number, SyncNonSync};

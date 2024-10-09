@@ -67,6 +67,13 @@ pub fn eval<O: Importable + Unpin + 'static>(s: &str) -> impl '_ + Future<Output
         out: PhantomData,
     }
 }
+/// run a lua script in the lua context and returns nothing
+pub fn exec(s: &str) -> impl '_ + Future<Output = LuaResult<()>> {
+    Eval {
+        data: Some(s),
+        out: PhantomData,
+    }
+}
 /// yield from the lua loop.
 pub async fn yield_lua() {
     use crate::lua_api::LuaResult;
