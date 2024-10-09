@@ -1,6 +1,6 @@
 [package]
 name = "cc_wasm_api"
-version = "0.4.3"
+version = "0.4.4"
 edition = "2021"
 authors = ["wefcdse"]
 description = "Rust lib for CC wasm mod"
