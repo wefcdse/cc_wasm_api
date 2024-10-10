@@ -17,6 +17,69 @@ use crate::{
     utils::{Number, SyncNonSync},
 };
 
+pub use async_lock::{AsyncLock, AsyncLockGuard};
+mod async_lock {
+    use std::{
+        cell::{Cell, UnsafeCell},
+        future::Future,
+        ops::{Deref, DerefMut},
+        task::Poll,
+    };
+
+    pub struct AsyncLock<T> {
+        data: UnsafeCell<T>,
+        locked: Cell<bool>,
+    }
+    pub struct AsyncLockGuard<'a, T> {
+        target: &'a AsyncLock<T>,
+    }
+    impl<'a, T> Deref for AsyncLockGuard<'a, T> {
+        type Target = T;
+
+        fn deref(&self) -> &Self::Target {
+            unsafe { &*self.target.data.get() }
+        }
+    }
+    impl<'a, T> DerefMut for AsyncLockGuard<'a, T> {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            unsafe { &mut *self.target.data.get() }
+        }
+    }
+    impl<'a, T> Drop for AsyncLockGuard<'a, T> {
+        fn drop(&mut self) {
+            self.target.locked.set(false);
+        }
+    }
+    impl<T> AsyncLock<T> {
+        pub const fn new(value: T) -> Self {
+            Self {
+                data: UnsafeCell::new(value),
+                locked: Cell::new(false),
+            }
+        }
+        pub fn lock(&self) -> impl '_ + Future<Output = AsyncLockGuard<'_, T>> {
+            struct Lock<'a, T>(&'a AsyncLock<T>);
+            impl<'a, T> Future for Lock<'a, T> {
+                type Output = AsyncLockGuard<'a, T>;
+
+                fn poll(
+                    self: std::pin::Pin<&mut Self>,
+                    cx: &mut std::task::Context<'_>,
+                ) -> std::task::Poll<Self::Output> {
+                    if self.0.locked.get() {
+                        cx.waker().wake_by_ref();
+                        Poll::Pending
+                    } else {
+                        self.0.locked.set(true);
+                        Poll::Ready(AsyncLockGuard { target: self.0 })
+                    }
+                }
+            }
+            Lock(self)
+        }
+    }
+}
+
 pub use tick_sync::TickSyncer;
 mod tick_sync {
     use std::{cell::Cell, fmt::Debug, future::Future, task::Poll, time::Duration};

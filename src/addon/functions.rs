@@ -21,11 +21,12 @@ pub async fn write_pix(x: i32, y: i32, pix: AsIfPixel, side: Side) -> LuaResult<
 }
 
 pub async fn init_monitor(side: Side) -> LuaResult<()> {
-    exec(&format!(
-        "global.monitor{} = peripheral.wrap(\"top\")",
-        side.name()
-    ))
-    .await
+    let script = format!(
+        "global.monitor{s} = peripheral.wrap(\"{s}\")",
+        s = side.name()
+    );
+
+    exec(&script).await
 }
 
 pub async fn clear(color: ColorId, side: Side) -> LuaResult<()> {

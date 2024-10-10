@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use crate::{eval::eval, prelude::LuaResult, utils::Number};
 
 use super::{
@@ -16,23 +14,27 @@ use super::{
 pub struct LocalMonitor {
     data: Vec2d<AsIfPixel>,
     changed: Vec2d<bool>,
-    wait_time: Duration,
-    wait_count: usize,
     side: Side,
 }
 
 // creating
 impl LocalMonitor {
+    pub const fn new_empty(side: Side) -> Self {
+        Self {
+            data: Vec2d::new_empty(),
+            changed: Vec2d::new_empty(),
+
+            side,
+        }
+    }
     fn new(x: usize, y: usize, pixel: AsIfPixel, side: Side) -> Self {
         Self {
             data: Vec2d::new_filled_copy(x, y, pixel),
             changed: Vec2d::new_filled_copy(x, y, true),
-            wait_time: Duration::from_secs_f32(0.05),
-            wait_count: 75,
             side,
         }
     }
-    pub fn resize(&mut self, x: usize, y: usize, pixel: AsIfPixel) {
+    fn resize(&mut self, x: usize, y: usize, pixel: AsIfPixel) {
         self.data = Vec2d::new_filled_copy(x, y, pixel);
         self.changed = Vec2d::new_filled_copy(x, y, true);
     }
@@ -118,8 +120,15 @@ impl LocalMonitor {
 }
 
 impl LocalMonitor {
-    pub async fn init(side: Side) -> LuaResult<Self> {
-        let (x, y): (Number, Number) = eval("return monitor.getSize()").await?;
+    pub async fn init(&mut self) -> LuaResult<()> {
+        let inited = Self::new_inited(self.side).await?;
+        *self = inited;
+        Ok(())
+    }
+    pub async fn new_inited(side: Side) -> LuaResult<Self> {
+        functions::init_monitor(side).await?;
+        let (x, y): (Number, Number) =
+            eval(&format!("return monitor{}.getSize()", side.name())).await?;
         let (x, y) = (x.to_i32() as usize, y.to_i32() as usize);
 
         let mut new_self = Self::new(x, y, AsIfPixel::default(), side);
@@ -128,6 +137,20 @@ impl LocalMonitor {
             .await?;
 
         Ok(new_self)
+    }
+    /// returns if resized
+    pub async fn sync_size(&mut self) -> LuaResult<bool> {
+        let (x, y): (Number, Number) =
+            eval(&format!("return monitor{}.getSize()", self.side.name())).await?;
+        let (x, y) = (x.to_i32() as usize, y.to_i32() as usize);
+        if self.size() == (x, y) {
+            return Ok(false);
+        }
+        self.resize(x, y, AsIfPixel::default());
+        // let mut new_self = Self::new(x, y, AsIfPixel::default(), side);
+        self.clear(AsIfPixel::default().background_color).await?;
+
+        Ok(true)
     }
     pub async fn sync(&mut self) -> LuaResult<usize> {
         let mut count = 0;

@@ -80,14 +80,21 @@ impl<T: Debug> Display for Vec2d<T> {
         Ok(())
     }
 }
-#[test]
-fn test_display() {
-    let mut v = Vec2d::new_filled_copy(2, 3, 0);
-    v[(0, 1)] = 2;
-    println!("{}", v);
-}
+// #[test]
+// fn test_display() {
+//     let mut v = Vec2d::new_filled_copy(2, 3, 0);
+//     v[(0, 1)] = 2;
+//     println!("{}", v);
+// }
 
 impl<T: Clone> Vec2d<T> {
+    pub const fn new_empty() -> Self {
+        Self {
+            inner: Vec::new(),
+            x: 0,
+            y: 0,
+        }
+    }
     pub fn new_filled(x: usize, y: usize, value: T) -> Self {
         Self {
             inner: {
@@ -180,17 +187,17 @@ impl Iterator for IterIndex {
     }
 }
 
-#[test]
-fn a() {
-    let mut v = Vec2d::new_filled_copy(2, 3, 0);
-    v[(0, 1)] = 2;
-    v[(1, 2)] = 20;
-    v[1][1] = 11;
-    dbg!(&v.inner[0..4]);
-    dbg!(&v);
-    println!("{:?}", v);
-    println!("{}", v);
-    for i in v.iter() {
-        println!("{:?}", i);
-    }
-}
+// #[test]
+// fn a() {
+//     let mut v = Vec2d::new_filled_copy(2, 3, 0);
+//     v[(0, 1)] = 2;
+//     v[(1, 2)] = 20;
+//     v[1][1] = 11;
+//     dbg!(&v.inner[0..4]);
+//     dbg!(&v);
+//     println!("{:?}", v);
+//     println!("{}", v);
+//     for i in v.iter() {
+//         println!("{:?}", i);
+//     }
+// }

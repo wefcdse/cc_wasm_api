@@ -14,7 +14,8 @@ pub mod prelude {
     #[cfg(feature = "coroutine")]
     #[cfg_attr(docsrs, doc(cfg(feature = "coroutine")))]
     pub use crate::coroutine::{
-        sleep, spawn, yield_now, CoroutineSpawn, TickSyncer, UnsyncChannel,
+        sleep, spawn, yield_now, AsyncLock, AsyncLockGuard, CoroutineSpawn, TickSyncer,
+        UnsyncChannel,
     };
     #[cfg(feature = "eval")]
     #[cfg_attr(docsrs, doc(cfg(feature = "eval")))]
