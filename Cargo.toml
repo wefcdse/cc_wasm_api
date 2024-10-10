@@ -11,7 +11,8 @@ keywords = ["wasm", "minecraft"]
 
 [dependencies]
 [features]
-default = ["coroutine", "eval"]
+default = ["coroutine", "eval", "addon"]
+addon = ["coroutine", "eval"]
 coroutine = []
 eval = []
 
