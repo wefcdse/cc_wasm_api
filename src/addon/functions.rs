@@ -2,13 +2,13 @@ use crate::{eval::exec, prelude::LuaResult};
 
 use super::misc::{AsIfPixel, ColorId, Side};
 
-pub async fn write_pix(x: i32, y: i32, pix: AsIfPixel, side: Side) -> LuaResult<()> {
+pub fn write_pix(x: i32, y: i32, pix: AsIfPixel, side: Side) -> String {
     // return;
     let script = format!(
         "global.monitor{s}.setCursorPos({x}, {y})
     global.monitor{s}.setBackgroundColour({bc})
     global.monitor{s}.setTextColour({tc})
-    global.monitor{s}.write(\"{txt}\")",
+    global.monitor{s}.write(\"{txt}\") \n",
         s = side.name(),
         x = x + 1,
         y = y + 1,
@@ -16,8 +16,33 @@ pub async fn write_pix(x: i32, y: i32, pix: AsIfPixel, side: Side) -> LuaResult<
         tc = pix.text_color.to_number(),
         txt = pix.text()
     );
-    // show_str(&script);
-    exec(&script).await
+    script
+}
+
+pub fn set_color(pix: AsIfPixel, side: Side) -> String {
+    // return;
+    let script = format!(
+        "global.monitor{s}.setBackgroundColour({bc})
+    global.monitor{s}.setTextColour({tc})
+    \n",
+        s = side.name(),
+        bc = pix.background_color.to_number(),
+        tc = pix.text_color.to_number(),
+    );
+    script
+}
+
+pub fn write_txt(x: i32, y: i32, pix: AsIfPixel, side: Side) -> String {
+    // return;
+    let script = format!(
+        "global.monitor{s}.setCursorPos({x}, {y})
+    global.monitor{s}.write(\"{txt}\") \n",
+        s = side.name(),
+        x = x + 1,
+        y = y + 1,
+        txt = pix.text()
+    );
+    script
 }
 
 pub async fn init_monitor(side: Side) -> LuaResult<()> {

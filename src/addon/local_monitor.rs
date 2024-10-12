@@ -1,4 +1,8 @@
-use crate::{eval::eval, prelude::LuaResult, utils::Number};
+use crate::{
+    eval::{eval, exec},
+    prelude::LuaResult,
+    utils::Number,
+};
 
 use super::{
     functions,
@@ -13,7 +17,7 @@ use super::{
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LocalMonitor {
     data: Vec2d<AsIfPixel>,
-    changed: Vec2d<bool>,
+    last_sync: Vec2d<AsIfPixel>,
     side: Side,
 }
 
@@ -22,7 +26,7 @@ impl LocalMonitor {
     pub const fn new_empty(side: Side) -> Self {
         Self {
             data: Vec2d::new_empty(),
-            changed: Vec2d::new_empty(),
+            last_sync: Vec2d::new_empty(),
 
             side,
         }
@@ -30,13 +34,25 @@ impl LocalMonitor {
     fn new(x: usize, y: usize, pixel: AsIfPixel, side: Side) -> Self {
         Self {
             data: Vec2d::new_filled_copy(x, y, pixel),
-            changed: Vec2d::new_filled_copy(x, y, true),
+            last_sync: Vec2d::new_filled_copy(
+                x,
+                y,
+                AsIfPixel::colored_whitespace(ColorId::from_number_overflow(
+                    (pixel.background_color.to_number() + 1).into(),
+                )),
+            ),
             side,
         }
     }
     fn resize(&mut self, x: usize, y: usize, pixel: AsIfPixel) {
         self.data = Vec2d::new_filled_copy(x, y, pixel);
-        self.changed = Vec2d::new_filled_copy(x, y, true);
+        self.last_sync = Vec2d::new_filled_copy(
+            x,
+            y,
+            AsIfPixel::colored_whitespace(ColorId::from_number_overflow(
+                (pixel.background_color.to_number() + 1).into(),
+            )),
+        );
     }
     pub fn size(&self) -> (usize, usize) {
         self.data.size()
@@ -71,7 +87,6 @@ impl LocalMonitor {
         let p0 = self.data[(x, y)];
         if p0 != pixel {
             self.data[(x, y)] = pixel;
-            self.changed[(x, y)] = true;
         }
     }
 
@@ -119,6 +134,7 @@ impl LocalMonitor {
     }
 }
 
+const BATCH: usize = 20000;
 impl LocalMonitor {
     pub async fn init(&mut self) -> LuaResult<()> {
         let inited = Self::new_inited(self.side).await?;
@@ -155,25 +171,42 @@ impl LocalMonitor {
     pub async fn sync(&mut self) -> LuaResult<usize> {
         let mut count = 0;
 
-        for ((x, y), changed) in self.changed.iter() {
-            if *changed {
-                let pixel = self.data[(x, y)];
+        let mut write_script = String::new();
+        let mut write_counter = 0;
+        for ((x, y), pix) in self.data.iter() {
+            if *pix != self.last_sync[(x, y)] {
+                let pixel = *pix;
 
-                functions::write_pix(x as i32, y as i32, pixel, self.side).await?;
+                write_script += &functions::write_pix(x as i32, y as i32, pixel, self.side);
 
                 count += 1;
+                write_counter += 1;
+            }
+            if write_counter >= BATCH {
+                exec(&write_script).await?;
+                write_script.clear();
+                write_counter = 0;
             }
         }
+        if !write_script.is_empty() {
+            exec(&format!("print({})", write_script.len())).await?;
+        }
+        exec(&write_script).await?;
 
-        self.changed = Vec2d::new_filled_copy(self.x(), self.y(), false);
+        self.last_sync = self.data.clone();
         Ok(count)
     }
 
     pub async fn sync_all(&mut self) -> LuaResult<()> {
+        let mut write_script = String::new();
         for ((x, y), pixel) in self.data.iter() {
-            functions::write_pix(x as i32, y as i32, *pixel, self.side).await?;
+            write_script += &functions::write_pix(x as i32, y as i32, *pixel, self.side);
         }
-        self.changed = Vec2d::new_filled_copy(self.x(), self.y(), false);
+        if !write_script.is_empty() {
+            exec(&format!("print({})", write_script.len())).await?;
+        }
+        exec(&write_script).await?;
+        self.last_sync = self.data.clone();
         Ok(())
     }
 
@@ -182,7 +215,7 @@ impl LocalMonitor {
         self.data.iter_mut().for_each(|(_, pix)| {
             *pix = AsIfPixel::colored_whitespace(color);
         });
-        self.changed = Vec2d::new_filled_copy(self.x(), self.y(), false);
+        self.last_sync = self.data.clone();
         Ok(())
     }
 }

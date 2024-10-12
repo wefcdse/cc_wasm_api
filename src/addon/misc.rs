@@ -78,11 +78,12 @@ pub struct AsIfPixel {
 }
 impl Default for AsIfPixel {
     fn default() -> Self {
-        Self {
-            text: ' ',
-            background_color: ColorId::Black,
-            text_color: ColorId::White,
-        }
+        // Self {
+        //     text: ' ',
+        //     background_color: ColorId::Black,
+        //     text_color: ColorId::White,
+        // }
+        Self::colored_whitespace(ColorId::Black)
     }
 }
 impl AsIfPixel {
