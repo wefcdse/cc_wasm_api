@@ -17,6 +17,7 @@ default = ["coroutine", "eval", "addon"]
 addon = ["coroutine", "eval"]
 coroutine = []
 eval = []
+debug = []
 
 [package.metadata.docs.rs]
 # features = ["dependent", "build_script"]

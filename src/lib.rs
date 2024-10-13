@@ -7,6 +7,7 @@ pub mod addon {
     mod functions;
     pub mod local_monitor;
     pub mod misc;
+    pub mod throw;
     pub mod vec2d;
 }
 
@@ -32,7 +33,15 @@ pub mod eval;
 pub mod lua_api;
 pub mod utils;
 pub mod debug {
-    pub use crate::lua_api::debug::show_str;
+    pub use dbg_inner::*;
+    #[cfg(feature = "debug")]
+    mod dbg_inner {
+        pub use crate::lua_api::debug::show_str;
+    }
+    #[cfg(not(feature = "debug"))]
+    mod dbg_inner {
+        pub fn show_str(_: &str) {}
+    }
 }
 
 /// a simple coroutine runtime, use to run coroutine in single thread environment.

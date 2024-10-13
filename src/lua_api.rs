@@ -5,7 +5,7 @@ mod lua_result {
     pub type LuaResult<T> = Result<T, LuaError>;
     use std::borrow::Cow;
     #[derive(Debug, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
-    pub struct LuaError(Cow<'static, str>);
+    pub struct LuaError(pub(crate) Cow<'static, str>);
     impl<T: ToString> From<T> for LuaError {
         fn from(value: T) -> Self {
             Self(Cow::Owned(value.to_string()))

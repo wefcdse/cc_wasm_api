@@ -1,3 +1,5 @@
+use std::ops::{Index, IndexMut};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ColorId {
     White = 0,
@@ -48,6 +50,19 @@ impl ColorId {
             15 => ColorId::Black,
             _ => panic!(),
         }
+    }
+}
+
+impl<T, const N: usize> Index<ColorId> for [T; N] {
+    type Output = T;
+
+    fn index(&self, index: ColorId) -> &Self::Output {
+        &self[index as usize]
+    }
+}
+impl<T, const N: usize> IndexMut<ColorId> for [T; N] {
+    fn index_mut(&mut self, index: ColorId) -> &mut Self::Output {
+        &mut self[index as usize]
     }
 }
 #[allow(unused)]
@@ -108,6 +123,9 @@ impl AsIfPixel {
     }
     pub fn text(&self) -> char {
         self.text
+    }
+    pub fn is_whitespace(&self) -> bool {
+        (self.background_color == self.text_color) || self.text.is_whitespace()
     }
 }
 
