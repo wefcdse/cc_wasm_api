@@ -4,7 +4,7 @@ use lua_api::Exportable;
 #[cfg(feature = "addon")]
 #[cfg_attr(docsrs, doc(cfg(feature = "addon")))]
 pub mod addon {
-    pub mod functions;
+    mod functions;
     pub mod local_monitor;
     pub mod misc;
     pub mod vec2d;

@@ -2,7 +2,7 @@ use crate::{eval::exec, prelude::LuaResult};
 
 use super::misc::{AsIfPixel, ColorId, Side};
 
-pub fn write_pix(x: i32, y: i32, pix: AsIfPixel, side: Side) -> String {
+pub fn _write_pix(x: usize, y: usize, pix: AsIfPixel, side: Side) -> String {
     // return;
     let script = format!(
         "global.monitor{s}.setCursorPos({x}, {y})
@@ -32,7 +32,7 @@ pub fn set_color(pix: AsIfPixel, side: Side) -> String {
     script
 }
 
-pub fn write_txt(x: i32, y: i32, pix: AsIfPixel, side: Side) -> String {
+pub fn write_txt(x: usize, y: usize, pix: AsIfPixel, side: Side) -> String {
     // return;
     let script = format!(
         "global.monitor{s}.setCursorPos({x}, {y})

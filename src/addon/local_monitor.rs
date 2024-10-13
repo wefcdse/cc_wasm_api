@@ -1,3 +1,5 @@
+// use rand::{seq::SliceRandom, thread_rng};
+
 use crate::{
     eval::{eval, exec},
     prelude::LuaResult,
@@ -90,13 +92,17 @@ impl LocalMonitor {
         }
     }
 
-    pub fn clear_with(&mut self, color: ColorId) {
-        for x in 1..=self.x() {
-            for y in 1..=self.y() {
-                let pixel = AsIfPixel::colored_whitespace(color);
-                self.write(x, y, pixel);
-            }
-        }
+    pub fn clear_local(&mut self, color: ColorId) {
+        // for x in 1..=self.x() {
+        //     for y in 1..=self.y() {
+        //         let pixel = AsIfPixel::colored_whitespace(color);
+        //         self.write(x, y, pixel);
+        //     }
+        // }
+
+        self.data.iter_mut().for_each(|(_, pix)| {
+            *pix = AsIfPixel::colored_whitespace(color);
+        });
     }
 
     /// write a [str], ignore non-ASCII chars
@@ -134,7 +140,7 @@ impl LocalMonitor {
     }
 }
 
-const BATCH: usize = 20000;
+// const BATCH: usize = 20000;
 impl LocalMonitor {
     pub async fn init(&mut self) -> LuaResult<()> {
         let inited = Self::new_inited(self.side).await?;
@@ -171,36 +177,131 @@ impl LocalMonitor {
     pub async fn sync(&mut self) -> LuaResult<usize> {
         let mut count = 0;
 
-        let mut write_script = String::new();
-        let mut write_counter = 0;
+        let mut to_write = Vec::new();
+
         for ((x, y), pix) in self.data.iter() {
             if *pix != self.last_sync[(x, y)] {
-                let pixel = *pix;
-
-                write_script += &functions::write_pix(x as i32, y as i32, pixel, self.side);
-
+                to_write.push((x, y, *pix));
                 count += 1;
-                write_counter += 1;
-            }
-            if write_counter >= BATCH {
-                exec(&write_script).await?;
-                write_script.clear();
-                write_counter = 0;
             }
         }
-        if !write_script.is_empty() {
-            exec(&format!("print({})", write_script.len())).await?;
-        }
-        exec(&write_script).await?;
 
+        to_write.sort_by(|a, b| {
+            (a.2.text_color, a.2.background_color).cmp(&(b.2.text_color, b.2.background_color))
+        });
+
+        if to_write.is_empty() {
+            return Ok(0);
+        }
+
+        let mut write_script = functions::set_color(to_write[0].2, self.side);
+        let mut last_color = (to_write[0].2.text_color, to_write[0].2.background_color);
+        for (x, y, pix) in to_write {
+            let color = (pix.text_color, pix.background_color);
+            if color != last_color {
+                write_script += &functions::set_color(pix, self.side);
+            }
+            write_script += &functions::write_txt(x, y, pix, self.side);
+            last_color = color;
+        }
+
+        exec(&write_script).await?;
+        // if !write_script.is_empty() {
+        //     exec(&format!("print({})", write_script.len())).await?;
+        // }
         self.last_sync = self.data.clone();
         Ok(count)
     }
+    pub async fn sync_limited(&mut self, limit: usize) -> LuaResult<usize> {
+        let mut count = 0;
 
-    pub async fn sync_all(&mut self) -> LuaResult<()> {
+        let mut to_write = Vec::new();
+
+        for ((x, y), pix) in self.data.iter() {
+            if *pix != self.last_sync[(x, y)] {
+                to_write.push((x, y, *pix));
+                count += 1;
+            }
+        }
+        // to_write.shuffle(&mut thread_rng());
+
+        to_write.sort_by(|a, b| {
+            (a.2.text_color, a.2.background_color).cmp(&(b.2.text_color, b.2.background_color))
+        });
+
+        if to_write.is_empty() {
+            return Ok(0);
+        }
+
+        let mut write_script = functions::set_color(to_write[0].2, self.side);
+        let mut last_color = (to_write[0].2.text_color, to_write[0].2.background_color);
+        for (idx, (x, y, pix)) in to_write.into_iter().enumerate() {
+            if idx >= limit {
+                break;
+            }
+            let color = (pix.text_color, pix.background_color);
+            if color != last_color {
+                write_script += &functions::set_color(pix, self.side);
+            }
+            write_script += &functions::write_txt(x, y, pix, self.side);
+            last_color = color;
+            self.last_sync[(x, y)] = pix;
+        }
+
+        exec(&write_script).await?;
+        // if !write_script.is_empty() {
+        //     exec(&format!("print({})", write_script.len())).await?;
+        // }
+        Ok(count)
+    }
+
+    pub async fn sync_limited_rate(&mut self, limit: f32) -> LuaResult<usize> {
+        let mut count = 0;
+
+        let mut to_write = Vec::new();
+
+        for ((x, y), pix) in self.data.iter() {
+            if *pix != self.last_sync[(x, y)] {
+                to_write.push((x, y, *pix));
+                count += 1;
+            }
+        }
+        // to_write.shuffle(&mut thread_rng());
+
+        to_write.sort_by(|a, b| {
+            (a.2.text_color, a.2.background_color).cmp(&(b.2.text_color, b.2.background_color))
+        });
+
+        if to_write.is_empty() {
+            return Ok(0);
+        }
+        let limit = (limit * to_write.len() as f32).ceil() as usize;
+        let mut write_script = functions::set_color(to_write[0].2, self.side);
+        let mut last_color = (to_write[0].2.text_color, to_write[0].2.background_color);
+        for (idx, (x, y, pix)) in to_write.into_iter().enumerate() {
+            if idx >= limit {
+                break;
+            }
+            let color = (pix.text_color, pix.background_color);
+            if color != last_color {
+                write_script += &functions::set_color(pix, self.side);
+            }
+            write_script += &functions::write_txt(x, y, pix, self.side);
+            last_color = color;
+            self.last_sync[(x, y)] = pix;
+        }
+
+        exec(&write_script).await?;
+        // if !write_script.is_empty() {
+        //     exec(&format!("print({})", write_script.len())).await?;
+        // }
+        Ok(count)
+    }
+
+    async fn _sync_all(&mut self) -> LuaResult<()> {
         let mut write_script = String::new();
         for ((x, y), pixel) in self.data.iter() {
-            write_script += &functions::write_pix(x as i32, y as i32, *pixel, self.side);
+            write_script += &functions::_write_pix(x, y, *pixel, self.side);
         }
         if !write_script.is_empty() {
             exec(&format!("print({})", write_script.len())).await?;

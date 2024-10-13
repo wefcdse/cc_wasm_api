@@ -1,6 +1,6 @@
 [package]
 name = "cc_wasm_api"
-version = "0.4.4"
+version = "0.4.5"
 edition = "2021"
 authors = ["wefcdse"]
 description = "Rust lib for CC wasm mod"
@@ -10,6 +10,8 @@ license = "MIT OR Apache-2.0"
 keywords = ["wasm", "minecraft"]
 
 [dependencies]
+# rand = "*"
+
 [features]
 default = ["coroutine", "eval", "addon"]
 addon = ["coroutine", "eval"]
