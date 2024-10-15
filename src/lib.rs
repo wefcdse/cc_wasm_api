@@ -4,7 +4,6 @@ use lua_api::Exportable;
 #[cfg(feature = "addon")]
 #[cfg_attr(docsrs, doc(cfg(feature = "addon")))]
 pub mod addon {
-    mod functions;
     pub mod local_monitor;
     pub mod misc;
     pub mod throw;
@@ -37,10 +36,27 @@ pub mod debug {
     #[cfg(feature = "debug")]
     mod dbg_inner {
         pub use crate::lua_api::debug::show_str;
+        use std::fmt::Debug;
+        pub fn show_debug(value: &impl Debug) {
+            show_str(&format!("{:?}", value));
+        }
+        pub fn show_debug_desc(description: &str, value: &impl Debug) {
+            show_str(&format!("{description}: {:?}", value));
+        }
     }
     #[cfg(not(feature = "debug"))]
     mod dbg_inner {
-        pub fn show_str(_: &str) {}
+        use std::fmt::Debug;
+
+        pub fn show_str(value: &str) {
+            let _ = value;
+        }
+        pub fn show_debug(value: &impl Debug) {
+            let _ = value;
+        }
+        pub fn show_debug_desc(description: &str, value: &impl Debug) {
+            let _ = (description, value);
+        }
     }
 }
 
