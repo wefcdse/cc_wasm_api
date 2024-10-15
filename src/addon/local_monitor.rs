@@ -2,6 +2,7 @@
 
 mod drawing;
 mod functions;
+mod initing;
 use super::{
     misc::{AsIfPixel, ColorId, Direction, Side},
     vec2d::Vec2d,
@@ -17,6 +18,8 @@ pub struct LocalMonitor {
     pub(crate) last_sync: Vec2d<AsIfPixel>,
     pub(crate) side: Side,
     pub(crate) name: String,
+    // pub(crate) is_remote: bool,
+    // pub(crate) remote_name: Option<String>,
 }
 
 // creating
@@ -44,7 +47,7 @@ impl LocalMonitor {
                 )),
             ),
             side,
-            name: format!("monitor{}", side.name()),
+            name: LocalMonitor::gen_name(side),
         }
     }
     fn resize(&mut self, x: usize, y: usize, pixel: AsIfPixel) {

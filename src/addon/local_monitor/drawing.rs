@@ -1,12 +1,11 @@
 use crate::{
-    addon::misc::{AsIfPixel, ColorId, Side},
+    addon::misc::{AsIfPixel, ColorId},
     debug::{self, show_str},
-    eval::{eval, exec},
+    eval::exec,
     prelude::LuaResult,
-    utils::Number,
 };
 
-use super::{functions, LocalMonitor};
+use super::LocalMonitor;
 
 impl LocalMonitor {
     pub(crate) fn gen_nonsynced(&self) -> Vec<(usize, usize, AsIfPixel)> {
@@ -254,42 +253,8 @@ impl LocalMonitor {
 
 // const BATCH: usize = 20000;
 impl LocalMonitor {
-    pub async fn init(&mut self, side: Side) -> LuaResult<()> {
-        self.side = side;
-        self.name = format!("monitor{}", self.side.name());
-        let inited = Self::new_inited(self.side).await?;
-        *self = inited;
-        Ok(())
-    }
-    pub async fn new_inited(side: Side) -> LuaResult<Self> {
-        functions::init_monitor(side).await?;
-        let (x, y): (Number, Number) =
-            eval(&format!("return monitor{}.getSize()", side.name())).await?;
-        let (x, y) = (x.to_i32() as usize, y.to_i32() as usize);
-
-        let mut new_self = Self::new(x, y, AsIfPixel::default(), side);
-        new_self
-            .clear(AsIfPixel::default().background_color)
-            .await?;
-
-        Ok(new_self)
-    }
-    /// returns if resized
-    pub async fn sync_size(&mut self) -> LuaResult<bool> {
-        let (x, y): (Number, Number) =
-            eval(&format!("return monitor{}.getSize()", self.side.name())).await?;
-        let (x, y) = (x.to_i32() as usize, y.to_i32() as usize);
-        if self.size() == (x, y) {
-            return Ok(false);
-        }
-        self.resize(x, y, AsIfPixel::default());
-        // let mut new_self = Self::new(x, y, AsIfPixel::default(), side);
-        self.clear(AsIfPixel::default().background_color).await?;
-
-        Ok(true)
-    }
-
     pub async fn sync(&mut self) -> LuaResult<usize> {
+        // show_str(self.name());
         let to_write: Vec<(usize, usize, AsIfPixel)> = self.gen_nonsynced();
 
         if to_write.is_empty() {
@@ -301,7 +266,7 @@ impl LocalMonitor {
 
         exec(&write_script).await?;
         debug::show_str(&format!(
-            "monitor {} draw code line: {}, changed pix: {}",
+            "monitor [{}] draw code line: {}, changed pix: {}",
             self.name(),
             code_line,
             changed_pix
@@ -311,25 +276,16 @@ impl LocalMonitor {
         Ok(changed_pix)
     }
 
-    async fn _sync_all(&mut self) -> LuaResult<()> {
-        let mut write_script = String::new();
-        for ((x, y), pixel) in self.data.iter() {
-            write_script += &functions::_write_pix(x, y, *pixel, self.side);
-        }
-        if !write_script.is_empty() {
-            exec(&format!("print({})", write_script.len())).await?;
-        }
-        exec(&write_script).await?;
-        self.last_sync = self.data.clone();
-        Ok(())
-    }
-
-    pub async fn clear(&mut self, color: ColorId) -> LuaResult<()> {
-        functions::clear(color, self.side).await?;
-        self.data.iter_mut().for_each(|(_, pix)| {
-            *pix = AsIfPixel::colored_whitespace(color);
-        });
-        self.last_sync = self.data.clone();
-        Ok(())
-    }
+    // async fn _sync_all(&mut self) -> LuaResult<()> {
+    //     let mut write_script = String::new();
+    //     for ((x, y), pixel) in self.data.iter() {
+    //         write_script += &functions::_write_pix(x, y, *pixel, self.side);
+    //     }
+    //     if !write_script.is_empty() {
+    //         exec(&format!("print({})", write_script.len())).await?;
+    //     }
+    //     exec(&write_script).await?;
+    //     self.last_sync = self.data.clone();
+    //     Ok(())
+    // }
 }

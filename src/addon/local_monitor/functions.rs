@@ -1,35 +1,33 @@
-use crate::{eval::exec, prelude::LuaResult};
-
 use super::{
     super::misc::{AsIfPixel, ColorId, Side},
     LocalMonitor,
 };
 
-pub fn _write_pix(x: usize, y: usize, pix: AsIfPixel, side: Side) -> String {
-    // return;
-    let script = format!(
-        "global.monitor{s}.setCursorPos({x}, {y})
-    global.monitor{s}.setBackgroundColour({bc})
-    global.monitor{s}.setTextColour({tc})
-    global.monitor{s}.write(\"{txt}\") \n",
-        s = side.name(),
-        x = x + 1,
-        y = y + 1,
-        bc = pix.background_color.to_number(),
-        tc = pix.text_color.to_number(),
-        txt = pix.text()
-    );
-    script
-}
+// pub fn _write_pix(x: usize, y: usize, pix: AsIfPixel, side: Side) -> String {
+//     // return;
+//     let script = format!(
+//         "global.monitor{s}.setCursorPos({x}, {y})
+//     global.monitor{s}.setBackgroundColour({bc})
+//     global.monitor{s}.setTextColour({tc})
+//     global.monitor{s}.write(\"{txt}\") \n",
+//         s = side.name(),
+//         x = x + 1,
+//         y = y + 1,
+//         bc = pix.background_color.to_number(),
+//         tc = pix.text_color.to_number(),
+//         txt = pix.text()
+//     );
+//     script
+// }
 #[allow(dead_code)]
 impl LocalMonitor {
     pub(crate) fn gen_script_set_color(&self, pix: AsIfPixel) -> (String, usize) {
         // return;
         let script = format!(
-            "global.monitor{s}.setBackgroundColour({bc})
-    global.monitor{s}.setTextColour({tc})
+            "global.{n}.setBackgroundColour({bc})
+    global.{n}.setTextColour({tc})
     \n",
-            s = self.side.name(),
+            n = self.name(),
             bc = pix.background_color.to_number(),
             tc = pix.text_color.to_number(),
         );
@@ -38,8 +36,8 @@ impl LocalMonitor {
     pub(crate) fn gen_script_set_txt_color(&self, pix: AsIfPixel) -> (String, usize) {
         // return;
         let script = format!(
-            "global.monitor{s}.setTextColour({tc})\n",
-            s = self.side.name(),
+            "global.{n}.setTextColour({tc})\n",
+            n = self.name(),
             tc = pix.text_color.to_number(),
         );
         (script, 1)
@@ -47,8 +45,8 @@ impl LocalMonitor {
     pub(crate) fn gen_script_set_bg_color(&self, pix: AsIfPixel) -> (String, usize) {
         // return;
         let script = format!(
-            "global.monitor{s}.setBackgroundColour({bc})\n",
-            s = self.side.name(),
+            "global.{n}.setBackgroundColour({bc})\n",
+            n = self.name(),
             bc = pix.background_color.to_number(),
         );
         (script, 1)
@@ -56,8 +54,8 @@ impl LocalMonitor {
     pub(crate) fn gen_script_set_cursor(&self, x: usize, y: usize) -> (String, usize) {
         // return;
         let script = format!(
-            "global.monitor{s}.setCursorPos({x}, {y})\n",
-            s = self.side.name(),
+            "global.{n}.setCursorPos({x}, {y})\n",
+            n = self.name(),
             x = x + 1,
             y = y + 1,
         );
@@ -66,14 +64,14 @@ impl LocalMonitor {
     pub(crate) fn gen_script_write_multi_char(&self, txt: &str) -> (String, usize) {
         // show_str(txt);
         // return;
-        let script = format!("global.monitor{s}.write({txt:?})\n", s = self.side.name(),);
+        let script = format!("global.{n}.write({txt:?})\n", n = self.name());
         (script, 1)
     }
     pub(crate) fn gen_script_write_char(&self, pix: AsIfPixel) -> (String, usize) {
         // return;
         let script = format!(
-            "global.monitor{s}.write({txt:?})\n",
-            s = self.side.name(),
+            "global.{n}.write({txt:?})\n",
+            n = self.name(),
             txt = pix.text()
         );
         (script, 1)
@@ -86,9 +84,9 @@ impl LocalMonitor {
     ) -> (String, usize) {
         // return;
         let script = format!(
-            "global.monitor{s}.setCursorPos({x}, {y})
-    global.monitor{s}.write(\"{txt}\") \n",
-            s = self.side.name(),
+            "global.{n}.setCursorPos({x}, {y})
+        global.{n}.write(\"{txt}\") \n",
+            n = self.name(),
             x = x + 1,
             y = y + 1,
             txt = pix.text()
@@ -99,31 +97,22 @@ impl LocalMonitor {
     pub(crate) fn gen_script_clear(&self, color: ColorId) -> (String, usize) {
         // return;
         let script = format!(
-            "global.monitor{s}.setBackgroundColour({bc})\n global.monitor{s}.clear()",
-            s = self.side.name(),
+            "global.{n}.setBackgroundColour({bc})\n global.{n}.clear()",
+            n = self.name(),
             bc = color.to_number(),
         );
         (script, 2)
     }
 }
 
-pub async fn init_monitor(side: Side) -> LuaResult<()> {
-    let script = format!(
-        "global.monitor{s} = peripheral.wrap(\"{s}\")",
-        s = side.name()
-    );
+impl LocalMonitor {
+    pub fn gen_script_init_monitor(side: Side) -> String {
+        let script = format!(
+            "global.{n} = peripheral.wrap(\"{s}\")",
+            s = side.name(),
+            n = LocalMonitor::gen_name(side)
+        );
 
-    exec(&script).await
-}
-
-pub async fn clear(color: ColorId, side: Side) -> LuaResult<()> {
-    // return;
-    let script = format!(
-        "   global.monitor{s}.setBackgroundColour({bc})
-            global.monitor{s}.clear()",
-        s = side.name(),
-        bc = color.to_number(),
-    );
-    // show_str(&script);
-    exec(&script).await
+        script
+    }
 }
