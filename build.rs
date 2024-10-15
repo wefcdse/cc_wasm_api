@@ -10,10 +10,9 @@ fn main() {
     println!("cargo::rerun-if-changed=build.rs");
 }
 
-pub const NUM_MAP: [&'static str; 2] = ["", ""];
 fn gen_str() -> String {
     let num = 512;
-    let mut o = format!(r#"pub const NUM_MAP: [&'static str; {num}] = ["#);
+    let mut o = format!(r#"pub const NUM_MAP: [&str; {num}] = ["#);
     for i in 0..num {
         o += &format!(r#" "{i}", "#);
     }

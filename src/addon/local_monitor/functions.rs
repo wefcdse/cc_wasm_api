@@ -25,29 +25,100 @@ use super::{
 mod fast_number {
     include!(concat!(env!("OUT_DIR"), "/num_map.rs"));
 }
-#[allow(dead_code)]
 impl LocalMonitor {
-    pub(crate) fn ext_script_set_color(&self, out: &mut String, pix: AsIfPixel) -> usize {
-        // return;
-        out.push_str("global.");
-        out.push_str(self.name());
-        out.push_str(".setBackgroundColour(");
-        out.push_str(pix.background_color.to_str());
-        out.push_str(")\n global.");
-        out.push_str(self.name());
-        out.push_str(".setTextColour(");
-        out.push_str(pix.text_color.to_str());
-        out.push_str(")\n");
-        //     let script = format!(
-        //         "global.{n}.setBackgroundColour({bc})
-        // global.{n}.setTextColour({tc})
-        // \n",
-        //         n = self.name(),
-        //         bc = pix.background_color.to_number(),
-        //         tc = pix.text_color.to_number(),
-        //     );
+    pub(crate) fn ext_script_set_color(
+        &self,
+        out: &mut String,
+        create_str: bool,
+        pix: AsIfPixel,
+    ) -> usize {
+        if create_str {
+            // return;
+            out.push_str("global.");
+            out.push_str(self.name());
+            out.push_str(".setBackgroundColour(");
+            out.push_str(pix.background_color.to_str());
+            out.push_str(")\n global.");
+            out.push_str(self.name());
+            out.push_str(".setTextColour(");
+            out.push_str(pix.text_color.to_str());
+            out.push_str(")\n");
+            //     let script = format!(
+            //         "global.{n}.setBackgroundColour({bc})
+            // global.{n}.setTextColour({tc})
+            // \n",
+            //         n = self.name(),
+            //         bc = pix.background_color.to_number(),
+            //         tc = pix.text_color.to_number(),
+            //     );)
+        }
         2
     }
+    pub(crate) fn ext_script_set_cursor(
+        &self,
+        out: &mut String,
+        create_str: bool,
+        x: usize,
+        y: usize,
+    ) -> usize {
+        if create_str {
+            out.push_str("global.");
+            out.push_str(self.name());
+            out.push_str(".setCursorPos(");
+            out.push_str(NUM_MAP[x]);
+            out.push_str(", ");
+            out.push_str(NUM_MAP[y]);
+            out.push_str(")\n");
+        }
+        // // return;
+        // let script = format!(
+        //     "global.{n}.setCursorPos({x}, {y})\n",
+        //     n = self.name(),
+        //     x = x + 1,
+        //     y = y + 1,
+        // );
+        1
+    }
+    pub(crate) fn ext_script_write_multi_char(
+        &self,
+        out: &mut String,
+        create_str: bool,
+        txt: &str,
+    ) -> usize {
+        if create_str {
+            out.push_str("global.");
+            out.push_str(self.name());
+            out.push_str(".write(\"");
+            out.push_str(txt);
+            out.push_str("\")\n");
+        }
+        1
+    }
+    pub(crate) fn ext_script_write_char(
+        &self,
+        out: &mut String,
+        create_str: bool,
+        pix: AsIfPixel,
+    ) -> usize {
+        if create_str {
+            out.push_str("global.");
+            out.push_str(self.name());
+            out.push_str(".write('");
+            out.push(pix.text());
+            out.push_str("')\n");
+        }
+        // // return;
+        // let script = format!(
+        //     "global.{n}.write({txt:?})\n",
+        //     n = self.name(),
+        //     txt = pix.text()
+        // );
+        1
+    }
+}
+
+#[allow(dead_code)]
+impl LocalMonitor {
     pub(crate) fn gen_script_set_color(&self, pix: AsIfPixel) -> (String, usize) {
         // return;
         let script = format!(
@@ -78,23 +149,7 @@ impl LocalMonitor {
         );
         (script, 1)
     }
-    pub(crate) fn ext_script_set_cursor(&self, out: &mut String, x: usize, y: usize) -> usize {
-        out.push_str("global.");
-        out.push_str(self.name());
-        out.push_str(".setCursorPos(");
-        out.push_str(NUM_MAP[x]);
-        out.push_str(", ");
-        out.push_str(NUM_MAP[y]);
-        out.push_str(")\n");
-        // // return;
-        // let script = format!(
-        //     "global.{n}.setCursorPos({x}, {y})\n",
-        //     n = self.name(),
-        //     x = x + 1,
-        //     y = y + 1,
-        // );
-        1
-    }
+
     pub(crate) fn gen_script_set_cursor(&self, x: usize, y: usize) -> (String, usize) {
         // return;
         let script = format!(
@@ -105,26 +160,14 @@ impl LocalMonitor {
         );
         (script, 1)
     }
+
     pub(crate) fn gen_script_write_multi_char(&self, txt: &str) -> (String, usize) {
         // show_str(txt);
         // return;
         let script = format!("global.{n}.write({txt:?})\n", n = self.name());
         (script, 1)
     }
-    pub(crate) fn ext_script_write_char(&self, out: &mut String, pix: AsIfPixel) -> usize {
-        out.push_str("global.");
-        out.push_str(self.name());
-        out.push_str(".write('");
-        out.push(pix.text());
-        out.push_str("')\n");
-        // // return;
-        // let script = format!(
-        //     "global.{n}.write({txt:?})\n",
-        //     n = self.name(),
-        //     txt = pix.text()
-        // );
-        1
-    }
+
     pub(crate) fn gen_script_write_char(&self, pix: AsIfPixel) -> (String, usize) {
         // return;
         let script = format!(
