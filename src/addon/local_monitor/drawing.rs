@@ -1,3 +1,5 @@
+use std::{iter::Inspect, time::Instant};
+
 use crate::{
     addon::misc::{AsIfPixel, ColorId},
     debug::{self, show_str},
@@ -36,20 +38,28 @@ impl LocalMonitor {
         });
         let to_write = draw;
 
-        let (mut write_script, mut code_line) = self.gen_script_set_color(to_write[0].2);
+        let mut gen_script_time = Instant::now();
+
+        let mut write_script = String::new();
+        write_script.reserve(10_000);
+        let mut code_line = self.ext_script_set_color(&mut write_script, to_write[0].2);
         let mut last_color = (to_write[0].2.text_color, to_write[0].2.background_color);
         for (x, y, pix) in to_write.iter().copied() {
             let color = (pix.text_color, pix.background_color);
             if color != last_color {
-                let (s, c) = self.gen_script_set_color(pix);
-                write_script += &s;
-                code_line += c;
+                code_line += self.ext_script_set_color(&mut write_script, pix);
             }
-            let (s, c) = self.gen_script_write_txt(x, y, pix);
-            write_script += &s;
-            code_line += c;
+            // let (s, c) = self.gen_script_write_txt(x, y, pix);
+            // write_script += &s;
+            // code_line += c;
+            code_line += self.ext_script_set_cursor(&mut write_script, x, y);
+            code_line += self.ext_script_write_char(&mut write_script, pix);
             last_color = color;
         }
+        show_str(&format!(
+            "gen_script_time {}ms",
+            gen_script_time.elapsed().as_secs_f32() * 1000.
+        ));
         (write_script, code_line)
     }
     /// x, y, pix
@@ -286,8 +296,12 @@ impl LocalMonitor {
         }
 
         let changed_pix = to_write.len();
-        let (write_script, code_line) = self.gen_draw_basic(to_write);
-
+        let now = Instant::now();
+        let (write_script, code_line) = self.gen_draw_opt_cursor_long_str(to_write);
+        show_str(&format!(
+            "gen_draw_basic {}",
+            now.elapsed().as_secs_f32() * 1000.
+        ));
         debug::show_str(&format!(
             "monitor [{}] draw code line: {}, changed pix: {}",
             self.name(),
