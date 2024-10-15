@@ -3,10 +3,12 @@
 mod drawing;
 mod functions;
 mod initing;
+
 use super::{
-    misc::{AsIfPixel, ColorId, Direction, Side},
+    misc::{AsIfPixel, ColorId, Direction},
     vec2d::Vec2d,
 };
+pub use initing::InitMethod;
 
 /// a monitor but stores the pixel localy,
 /// and can send only changed pixels
@@ -16,7 +18,7 @@ use super::{
 pub struct LocalMonitor {
     pub(crate) data: Vec2d<AsIfPixel>,
     pub(crate) last_sync: Vec2d<AsIfPixel>,
-    pub(crate) side: Side,
+    // pub(crate) side: Side,
     pub(crate) name: String,
     // pub(crate) is_remote: bool,
     // pub(crate) remote_name: Option<String>,
@@ -32,11 +34,11 @@ impl LocalMonitor {
             data: Vec2d::new_empty(),
             last_sync: Vec2d::new_empty(),
 
-            side: Side::Top,
+            // side: Side::Top,
             name: String::new(),
         }
     }
-    fn new(x: usize, y: usize, pixel: AsIfPixel, side: Side) -> Self {
+    fn new(x: usize, y: usize, pixel: AsIfPixel, init_method: InitMethod) -> Self {
         Self {
             data: Vec2d::new_filled_copy(x, y, pixel),
             last_sync: Vec2d::new_filled_copy(
@@ -46,8 +48,8 @@ impl LocalMonitor {
                     (pixel.background_color.to_number() + 1).into(),
                 )),
             ),
-            side,
-            name: LocalMonitor::gen_name(side),
+            // side,
+            name: LocalMonitor::gen_name(init_method),
         }
     }
     fn resize(&mut self, x: usize, y: usize, pixel: AsIfPixel) {

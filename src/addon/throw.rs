@@ -26,6 +26,33 @@ macro_rules! throw {
     };
 }
 
+#[macro_export]
+macro_rules! throw_exec {
+    ($e:expr) => {{
+        let e = $e;
+        let e = $crate::eval::exec(e).await;
+        $crate::addon::throw::Throw::throw_with_info(e, (::std::file!(), ::std::line!())).await
+    }};
+}
+#[macro_export]
+macro_rules! throw_eval {
+    ($t:ty, $e:expr) => {{
+        let e = $e;
+        let e = $crate::eval::eval::<$t>(e).await;
+        $crate::addon::throw::Throw::throw_with_info(e, (::std::file!(), ::std::line!())).await
+    }};
+    ($e:expr) => {{
+        let e = $e;
+        let e = $crate::eval::eval(e).await;
+        $crate::addon::throw::Throw::throw_with_info(e, (::std::file!(), ::std::line!())).await
+    }};
+    ($e:expr, $t:ty) => {{
+        let e = $e;
+        let e = $crate::eval::eval::<$t>(e).await;
+        $crate::addon::throw::Throw::throw_with_info(e, (::std::file!(), ::std::line!())).await
+    }};
+}
+
 impl<T, E: Display> Throw<T> for Result<T, E> {
     async fn throw(self) -> T {
         match self {

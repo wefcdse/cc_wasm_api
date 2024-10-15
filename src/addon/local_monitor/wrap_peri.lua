@@ -1,4 +1,6 @@
+---@diagnostic disable-next-line: lowercase-global
 function wrap_remote(side, name)
+    ---@diagnostic disable-next-line: undefined-global
     local r = peripheral.wrap(side)
     local methods = r.getMethodsRemote(name)
     local wraped = {}

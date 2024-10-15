@@ -275,6 +275,29 @@ impl LocalMonitor {
         self.last_sync = self.data.clone();
         Ok(changed_pix)
     }
+    /// # Safety
+    /// the script must be execed
+    pub unsafe fn sync_script(&mut self) -> (String, usize) {
+        // show_str(self.name());
+        let to_write: Vec<(usize, usize, AsIfPixel)> = self.gen_nonsynced();
+
+        if to_write.is_empty() {
+            return (String::new(), 0);
+        }
+
+        let changed_pix = to_write.len();
+        let (write_script, code_line) = self.gen_draw_basic(to_write);
+
+        debug::show_str(&format!(
+            "monitor [{}] draw code line: {}, changed pix: {}",
+            self.name(),
+            code_line,
+            changed_pix
+        ));
+
+        self.last_sync = self.data.clone();
+        (write_script, code_line)
+    }
 
     // async fn _sync_all(&mut self) -> LuaResult<()> {
     //     let mut write_script = String::new();

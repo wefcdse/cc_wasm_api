@@ -1,5 +1,6 @@
 use super::{
-    super::misc::{AsIfPixel, ColorId, Side},
+    super::misc::{AsIfPixel, ColorId},
+    initing::InitMethod,
     LocalMonitor,
 };
 
@@ -85,7 +86,7 @@ impl LocalMonitor {
         // return;
         let script = format!(
             "global.{n}.setCursorPos({x}, {y})
-        global.{n}.write(\"{txt}\") \n",
+        global.{n}.write({txt:?}) \n",
             n = self.name(),
             x = x + 1,
             y = y + 1,
@@ -106,13 +107,38 @@ impl LocalMonitor {
 }
 
 impl LocalMonitor {
-    pub fn gen_script_init_monitor(side: Side) -> String {
-        let script = format!(
-            "global.{n} = peripheral.wrap(\"{s}\")",
-            s = side.name(),
-            n = LocalMonitor::gen_name(side)
-        );
+    pub fn gen_script_init_monitor(init_method: InitMethod<'_>) -> String {
+        match init_method {
+            InitMethod::Remote { side, name } => format!(
+                "{func}\n global.{n} = wrap_remote({s:?}, {rn:?})",
+                func = include_str!("wrap_peri.lua"),
+                s = side.name(),
+                n = LocalMonitor::gen_name(init_method),
+                rn = name
+            ),
+            InitMethod::Local(side) => format!(
+                "global.{n} = peripheral.wrap(\"{s}\")",
+                s = side.name(),
+                n = LocalMonitor::gen_name(init_method)
+            ),
+        }
+        // if is_remote {
+        //     let script = format!(
+        //         "{func}\nglobal.{n} = peripheral.wrap(\"{s}\")",
+        //         func = include_str!("wrap_peri.lua"),
+        //         s = side.name(),
+        //         n = LocalMonitor::gen_name(side)
+        //     );
 
-        script
+        //     script
+        // } else {
+        //     let script = format!(
+        //         "global.{n} = peripheral.wrap(\"{s}\")",
+        //         s = side.name(),
+        //         n = LocalMonitor::gen_name(side)
+        //     );
+
+        //     script
+        // }
     }
 }
