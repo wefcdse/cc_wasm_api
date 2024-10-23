@@ -3,6 +3,7 @@ use std::{future::Future, marker::PhantomData, task::Poll};
 use crate::lua_api::{Importable, LuaResult};
 
 mod ffi {
+    #[cfg(target_arch = "wasm32")]
     #[allow(unused)]
     #[link(wasm_import_module = "host")]
     extern "C" {
@@ -11,6 +12,25 @@ mod ffi {
         pub fn eval_ready() -> i32;
         pub fn clear_eval();
         pub fn import_from_eval();
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub use fake::*;
+    #[cfg(not(target_arch = "wasm32"))]
+    #[allow(unused)]
+    mod fake {
+        pub unsafe fn call_eval(addr: i32, len: i32) -> i32 {
+            todo!()
+        }
+        pub unsafe fn eval_ready() -> i32 {
+            todo!()
+        }
+        pub unsafe fn clear_eval() {
+            todo!()
+        }
+        pub unsafe fn import_from_eval() {
+            todo!()
+        }
     }
 }
 

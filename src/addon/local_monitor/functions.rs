@@ -65,9 +65,9 @@ impl LocalMonitor {
             out.push_str("global.");
             out.push_str(self.name());
             out.push_str(".setCursorPos(");
-            out.push_str(NUM_MAP[x]);
+            out.push_str(NUM_MAP[x + 1]);
             out.push_str(", ");
-            out.push_str(NUM_MAP[y]);
+            out.push_str(NUM_MAP[y + 1]);
             out.push_str(")\n");
         }
         // // return;

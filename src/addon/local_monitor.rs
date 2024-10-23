@@ -4,6 +4,8 @@ mod drawing;
 mod functions;
 mod initing;
 
+use crate::prelude::LuaResult;
+
 use super::{
     misc::{AsIfPixel, ColorId, Direction},
     vec2d::Vec2d,
@@ -28,6 +30,9 @@ pub struct LocalMonitor {
 impl LocalMonitor {
     fn name(&self) -> &str {
         &self.name
+    }
+    pub const fn xy_rate() -> f32 {
+        61. / 40.
     }
     pub const fn new_empty() -> Self {
         Self {
@@ -143,5 +148,8 @@ impl LocalMonitor {
                 return;
             }
         }
+    }
+    pub async fn set_plattle(&self) -> LuaResult<()> {
+        Ok(())
     }
 }

@@ -123,6 +123,7 @@ pub(crate) mod lua_ffi {
                 Ok(Typed::from_i32(unsafe { import_i32() }))
             }
         }
+        #[cfg(target_arch = "wasm32")]
         #[allow(unused)]
         #[link(wasm_import_module = "host")]
         extern "C" {
@@ -153,6 +154,87 @@ pub(crate) mod lua_ffi {
             pub fn abort_next_import();
             pub fn success();
             pub fn failed();
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        pub use fake::*;
+        #[cfg(not(target_arch = "wasm32"))]
+        #[allow(unused)]
+        mod fake {
+            pub unsafe fn show_str(addr: i32, len: i32) {
+                todo!()
+            }
+
+            pub unsafe fn next_type() -> i32 {
+                todo!()
+            }
+
+            pub unsafe fn export_string(addr: i32, len: i32) {
+                todo!()
+            }
+
+            pub unsafe fn import_string_length() -> i32 {
+                todo!()
+            }
+
+            pub unsafe fn import_string_data(addr: i32) {
+                todo!()
+            }
+
+            pub unsafe fn import_i32() -> i32 {
+                todo!()
+            }
+
+            pub unsafe fn export_i32(data: i32) {
+                todo!()
+            }
+
+            pub unsafe fn import_i64() -> i64 {
+                todo!()
+            }
+
+            pub unsafe fn export_i64(data: i64) {
+                todo!()
+            }
+
+            pub unsafe fn import_f32() -> f32 {
+                todo!()
+            }
+
+            pub unsafe fn export_f32(data: f32) {
+                todo!()
+            }
+
+            pub unsafe fn import_f64() -> f64 {
+                todo!()
+            }
+
+            pub unsafe fn export_f64(data: f64) {
+                todo!()
+            }
+
+            pub unsafe fn import_bool() -> i32 {
+                todo!()
+            }
+
+            pub unsafe fn export_bool(data: i32) {
+                todo!()
+            }
+
+            pub unsafe fn export_nil() {
+                todo!()
+            }
+
+            pub unsafe fn abort_next_import() {
+                todo!()
+            }
+
+            pub unsafe fn success() {
+                todo!()
+            }
+
+            pub unsafe fn failed() {
+                todo!()
+            }
         }
     }
     pub fn next_import_type() -> Typed {
@@ -360,9 +442,8 @@ mod io_impl_utils {
     }
     impl<T: Exportable> Exportable for Option<T> {
         fn export(&self) {
-            match self {
-                Some(v) => v.export(),
-                None => {}
+            if let Some(v) = self {
+                v.export()
             }
         }
     }
