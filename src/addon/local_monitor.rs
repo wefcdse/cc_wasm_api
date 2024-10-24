@@ -4,7 +4,7 @@ mod drawing;
 mod functions;
 mod initing;
 
-use crate::prelude::LuaResult;
+use crate::{eval::exec, prelude::LuaResult};
 
 use super::{
     misc::{AsIfPixel, ColorId, Direction},
@@ -149,7 +149,8 @@ impl LocalMonitor {
             }
         }
     }
-    pub async fn set_plattle(&self) -> LuaResult<()> {
-        Ok(())
+    pub async fn set_palette(&self, color: ColorId, target: u32) -> LuaResult<()> {
+        let script = self.gen_script_set_palette(color, target).0;
+        exec(&script).await
     }
 }

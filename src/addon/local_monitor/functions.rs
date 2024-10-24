@@ -242,3 +242,16 @@ impl LocalMonitor {
         // }
     }
 }
+
+impl LocalMonitor {
+    pub(crate) fn gen_script_set_palette(&self, clr: ColorId, target: u32) -> (String, usize) {
+        // return;
+        let script = format!(
+            "global.{n}.setPaletteColour({clr}, {t})\n",
+            n = self.name(),
+            clr = clr.to_number(),
+            t = target
+        );
+        (script, 1)
+    }
+}
