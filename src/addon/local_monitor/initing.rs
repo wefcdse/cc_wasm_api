@@ -89,4 +89,14 @@ impl LocalMonitor {
         self.last_sync = self.data.clone();
         Ok(())
     }
+    /// generate clear script and mark the monitor to be cleared
+    /// # Safety
+    /// the returned script must be runned
+    pub unsafe fn clear_script(&mut self, color: ColorId) -> (String, usize) {
+        self.data.iter_mut().for_each(|(_, pix)| {
+            *pix = AsIfPixel::colored_whitespace(color);
+        });
+        self.last_sync = self.data.clone();
+        self.gen_script_clear(color)
+    }
 }

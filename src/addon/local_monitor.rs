@@ -153,4 +153,7 @@ impl LocalMonitor {
         let script = self.gen_script_set_palette(color, target).0;
         exec(&script).await
     }
+    pub fn set_palette_script(&self, color: ColorId, target: u32) -> (String, usize) {
+        self.gen_script_set_palette(color, target)
+    }
 }

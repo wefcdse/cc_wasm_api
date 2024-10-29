@@ -8,6 +8,7 @@ pub mod addon {
     pub mod local_monitor;
     pub mod misc;
     pub mod throw;
+    pub mod time;
     pub mod vec2d;
 }
 
