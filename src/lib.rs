@@ -76,6 +76,8 @@ pub mod coroutine;
 pub unsafe fn lib_exports() {
     #[cfg(feature = "coroutine")]
     "tick".export();
+    #[cfg(feature = "coroutine")]
+    "stopped".export();
 
     #[cfg(feature = "eval")]
     "eval_result".export();

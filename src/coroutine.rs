@@ -12,6 +12,29 @@ use std::{
 
 use fut_blocker::Stopper;
 
+pub use stop::stop;
+
+mod stop {
+    use std::cell::Cell;
+
+    use crate::{lua_api::success, prelude::Exportable, utils::SyncNonSync};
+
+    static STOPPED: SyncNonSync<Cell<bool>> = SyncNonSync(Cell::new(false));
+    pub(crate) fn get_stopped() -> bool {
+        STOPPED.get()
+    }
+    pub fn stop() {
+        STOPPED.set(true);
+    }
+    #[no_mangle]
+    pub extern "C" fn stopped() {
+        unsafe {
+            success();
+        }
+        get_stopped().export();
+    }
+}
+
 use crate::{
     lua_api::Importable,
     utils::{Number, SyncNonSync},
@@ -406,6 +429,8 @@ pub fn yield_counter() -> usize {
 #[cfg(target_os = "unknown")]
 #[no_mangle]
 pub extern "C" fn tick() {
+    use stop::stop;
+
     COROUTINES
         .borrow_mut()
         .append(SPAWNED.borrow_mut().as_mut());
@@ -415,13 +440,20 @@ pub extern "C" fn tick() {
 
     // let new = workload.drain(..).into_iter().filter_map();
     workload.retain_mut(|a| {
-        let pinned = a.as_mut();
+        let pinned = a.fut.as_mut();
         pinned.poll(&mut c).is_pending() && a.stopper.not_stopped()
     });
+
+    ACTIVE_COROUTINE_COUNT.set(workload.len());
+    if coroutines() == 0 {
+        stop();
+    }
 }
 #[cfg(not(target_os = "unknown"))]
 #[no_mangle]
 extern "C" fn tick() {
+    use stop::stop;
+
     COROUTINES
         .borrow_mut()
         .append(SPAWNED.borrow_mut().as_mut());
@@ -445,6 +477,9 @@ extern "C" fn tick() {
         }
     }
     ACTIVE_COROUTINE_COUNT.set(workload.len());
+    if coroutines() == 0 {
+        stop();
+    }
 }
 /// spawns a coroutine, which will be executed in tick function.
 pub trait CoroutineSpawn {

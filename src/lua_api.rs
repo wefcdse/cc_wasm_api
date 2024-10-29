@@ -350,7 +350,18 @@ mod io_impl_string {
             import_string()
         }
     }
-
+    impl Importable for Vec<u8> {
+        fn import() -> LuaResult<Self> {
+            import_bytes()
+        }
+    }
+    impl Exportable for Vec<u8> {
+        fn export(&self) {
+            unsafe {
+                ffi::export_string(addrof(self), self.len() as i32);
+            }
+        }
+    }
     fn export_string(s: &str) {
         unsafe {
             ffi::export_string(addrof(s), s.len() as i32);
@@ -368,6 +379,19 @@ mod io_impl_string {
             ffi::import_string_data(addr as *const u8 as usize as i32);
         }
         String::from_utf8(a).map_err(|_| LuaError::from_str("non utf8 string"))
+    }
+    fn import_bytes() -> LuaResult<Vec<u8>> {
+        // if next_import_type() != Typed::String {
+        //     Err(LuaError::from_str("not receiving String"))?;
+        // }
+        assert_type(Typed::String)?;
+
+        let mut a = vec![0u8; unsafe { ffi::import_string_length() } as usize];
+        unsafe {
+            let addr = a.as_mut_ptr();
+            ffi::import_string_data(addr as *const u8 as usize as i32);
+        }
+        Ok(a)
     }
 }
 
