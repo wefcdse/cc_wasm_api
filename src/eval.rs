@@ -47,7 +47,7 @@ struct Eval<'a, O: Importable + Unpin> {
     data: Option<&'a str>,
     out: PhantomData<O>,
 }
-impl<'a, O: Importable + Unpin> Future for Eval<'a, O> {
+impl<O: Importable + Unpin> Future for Eval<'_, O> {
     type Output = LuaResult<O>;
 
     fn poll(

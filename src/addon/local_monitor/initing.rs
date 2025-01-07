@@ -22,7 +22,7 @@ pub enum InitMethod<'a> {
     Remote { side: Side, name: &'a str },
     Local(Side),
 }
-impl<'a> From<Side> for InitMethod<'a> {
+impl From<Side> for InitMethod<'_> {
     fn from(value: Side) -> Self {
         Self::Local(value)
     }

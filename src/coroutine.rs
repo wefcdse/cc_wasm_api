@@ -56,19 +56,19 @@ mod async_lock {
     pub struct AsyncLockGuard<'a, T> {
         target: &'a AsyncLock<T>,
     }
-    impl<'a, T> Deref for AsyncLockGuard<'a, T> {
+    impl<T> Deref for AsyncLockGuard<'_, T> {
         type Target = T;
 
         fn deref(&self) -> &Self::Target {
             unsafe { &*self.target.data.get() }
         }
     }
-    impl<'a, T> DerefMut for AsyncLockGuard<'a, T> {
+    impl<T> DerefMut for AsyncLockGuard<'_, T> {
         fn deref_mut(&mut self) -> &mut Self::Target {
             unsafe { &mut *self.target.data.get() }
         }
     }
-    impl<'a, T> Drop for AsyncLockGuard<'a, T> {
+    impl<T> Drop for AsyncLockGuard<'_, T> {
         fn drop(&mut self) {
             self.target.locked.set(false);
         }
@@ -631,7 +631,7 @@ impl<V> UnsyncChannel<V> {
     }
     pub fn get(&self) -> impl '_ + Future<Output = V> {
         struct Get<'a, O>(&'a UnsyncChannel<O>);
-        impl<'a, O> Future for Get<'a, O> {
+        impl<O> Future for Get<'_, O> {
             type Output = O;
 
             fn poll(
@@ -659,7 +659,7 @@ impl<V> UnsyncChannel<V> {
     }
     pub fn insert(&self, value: V) -> impl '_ + Future<Output = ()> {
         struct Insert<'a, T>(Option<&'a UnsyncChannel<T>>, ManuallyDrop<T>);
-        impl<'a, T> Future for Insert<'a, T> {
+        impl<T> Future for Insert<'_, T> {
             type Output = ();
 
             fn poll(self: core::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -684,7 +684,7 @@ impl<V> UnsyncChannel<V> {
             }
         }
 
-        impl<'a, T> Drop for Insert<'a, T> {
+        impl<T> Drop for Insert<'_, T> {
             fn drop(&mut self) {
                 // SAFETY:self.0会指示是否完成。如果已经完成了就不drop了。
                 if self.0.is_some() {
