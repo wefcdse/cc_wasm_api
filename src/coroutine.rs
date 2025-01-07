@@ -105,9 +105,19 @@ mod async_lock {
 
 pub use tick_sync::TickSyncer;
 mod tick_sync {
-    use std::{cell::Cell, fmt::Debug, future::Future, task::Poll, time::Duration};
+    use std::{
+        cell::{Cell, RefCell},
+        fmt::Debug,
+        future::Future,
+        task::Poll,
+        time::Duration,
+    };
 
-    use crate::{coroutine::CoroutineSpawn as _, eval::yield_lua, utils::SyncNonSync};
+    use crate::{
+        coroutine::{fut_blocker::Stopper, CoroutineSpawn as _},
+        eval::yield_lua,
+        utils::SyncNonSync,
+    };
 
     use super::sleep;
     /// limit the corountine's loop to run exactly once every tick.
@@ -183,18 +193,21 @@ mod tick_sync {
         pub unsafe fn handle_sync() -> impl Future<Output = ()> {
             tick_sync_handle()
         }
-        pub fn spawn_handle_coroutine() {
-            static RUNNED: SyncNonSync<Cell<bool>> = SyncNonSync(Cell::new(false));
+        pub fn spawn_handle_coroutine() -> Stopper {
+            static RUNNED: SyncNonSync<RefCell<Option<Stopper>>> = SyncNonSync(RefCell::new(None));
 
-            if !RUNNED.get() {
-                async {
+            if RUNNED.borrow().is_none() {
+                let stop = async {
                     loop {
                         unsafe { TickSyncer::handle_sync() }.await;
                         yield_lua().await;
                     }
                 }
                 .spawn();
-                RUNNED.set(true);
+                *RUNNED.borrow_mut() = Some(stop.clone());
+                stop
+            } else {
+                RUNNED.borrow().as_ref().unwrap().clone()
             }
         }
     }

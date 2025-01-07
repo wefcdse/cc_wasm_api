@@ -35,6 +35,19 @@ macro_rules! throw_exec {
     }};
 }
 #[macro_export]
+macro_rules! exec_format {
+    ($($t:tt)*) => {
+        $crate::throw_exec!(&::std::format!($($t)*));
+    };
+}
+#[macro_export]
+macro_rules! eval_format {
+    ($($t:tt)*) => {
+        $crate::throw_eval!(&::std::format!($($t)*));
+    };
+}
+
+#[macro_export]
 macro_rules! throw_eval {
     ($t:ty, $e:expr) => {{
         let e = $e;

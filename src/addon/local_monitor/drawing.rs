@@ -121,9 +121,10 @@ impl LocalMonitor {
     /// x, y, pix
     pub(crate) fn gen_draw_opt_cursor_long_str(
         &self,
+        script: &mut String,
         mut draw: Vec<(usize, usize, AsIfPixel)>,
         create_str: bool,
-    ) -> (String, usize) {
+    ) -> usize {
         if draw.is_empty() {
             return Default::default();
         }
@@ -146,20 +147,16 @@ impl LocalMonitor {
         // show_str(&format!("dsadsa {}", TTT.elapsed().as_secs_f32() * 1000.));
 
         let to_write = draw;
-        let (mut write_script, mut code_line) = (String::new(), 0);
+        let mut code_line = 0;
 
         let mut last_color = (to_write[0].2.text_color, to_write[0].2.background_color);
         {
-            code_line += self.ext_script_set_color(&mut write_script, create_str, to_write[0].2);
+            code_line += self.ext_script_set_color(script, create_str, to_write[0].2);
         }
         let mut cursor_pos = (to_write[0].0, to_write[0].1);
         {
-            code_line += self.ext_script_set_cursor(
-                &mut write_script,
-                create_str,
-                to_write[0].0,
-                to_write[0].1,
-            );
+            code_line +=
+                self.ext_script_set_cursor(script, create_str, to_write[0].0, to_write[0].1);
         }
 
         let mut write_str = String::new();
@@ -168,17 +165,16 @@ impl LocalMonitor {
             let pos = (x, y);
 
             if color != last_color || pos != cursor_pos {
-                code_line +=
-                    self.ext_script_write_multi_char(&mut write_script, create_str, &write_str);
+                code_line += self.ext_script_write_multi_char(script, create_str, &write_str);
                 write_str.clear();
             }
 
             if color != last_color {
-                code_line += self.ext_script_set_color(&mut write_script, create_str, pix);
+                code_line += self.ext_script_set_color(script, create_str, pix);
             }
 
             if pos != cursor_pos {
-                code_line += self.ext_script_set_cursor(&mut write_script, create_str, x, y);
+                code_line += self.ext_script_set_cursor(script, create_str, x, y);
             }
 
             write_str.extend(pix.text().escape_debug());
@@ -193,18 +189,22 @@ impl LocalMonitor {
         {
             // let (s, c) = self.gen_script_write_multi_char(&write_str);
             // write_script += &s;
-            code_line +=
-                self.ext_script_write_multi_char(&mut write_script, create_str, &write_str);
+            code_line += self.ext_script_write_multi_char(script, create_str, &write_str);
             write_str.clear();
         }
-        (write_script, code_line)
+        code_line
     }
 
     pub(crate) fn gen_draw_opt_auto_clear(
         &self,
+        script: &mut String,
         draw: Vec<(usize, usize, AsIfPixel)>,
-    ) -> (String, usize) {
-        let (default_s, default_c) = self.gen_draw_opt_cursor_long_str(draw, true);
+    ) -> usize {
+        let (default_s, default_c) = {
+            let mut d = String::new();
+            let c = self.gen_draw_opt_cursor_long_str(&mut d, draw, true);
+            (d, c)
+        };
 
         let mut color_map = [0; 16];
         self.data.iter().for_each(|(_, p)| {
@@ -243,23 +243,24 @@ impl LocalMonitor {
             // show_str("a");
             let (mut s, mut c) = self.gen_script_clear(clear_color);
             // show_str("b");
-            let d = self.gen_draw_opt_cursor_long_str(cleared, true);
+            c += self.gen_draw_opt_cursor_long_str(&mut s, cleared, true);
             // show_str("c");
-            s += &d.0;
-            c += d.1;
+
             // show_str("d");
             (s, c)
         };
         // show_str("after script gen");
         if clear_c >= default_c {
             show_str(&format!("{} use default", self.name()));
-            (default_s, default_c)
+            *script += &default_s;
+            default_c
         } else {
             show_str(&format!("{} use clear", self.name()));
-            (clear_s, clear_c)
+            *script += &clear_s;
+            clear_c
         }
     }
-    pub(crate) fn gen_draw_opt_clear(&self, bg_color: ColorId) -> (String, usize) {
+    pub(crate) fn gen_draw_opt_clear(&self, script: &mut String, bg_color: ColorId) -> usize {
         // show_str("after iter");
         let clear_color = bg_color;
         // show_str("after color");
@@ -275,15 +276,13 @@ impl LocalMonitor {
             to_write
         };
 
-        let (clear_s, clear_c) = {
-            let (mut s, mut c) = self.gen_script_clear(clear_color);
-            let d = self.gen_draw_opt_cursor_long_str(cleared, true);
-            s += &d.0;
-            c += d.1;
-            (s, c)
-        };
-
-        (clear_s, clear_c)
+        {
+            let (s, mut c) = self.gen_script_clear(clear_color);
+            *script += &s;
+            drop(s);
+            c += self.gen_draw_opt_cursor_long_str(script, cleared, true);
+            c
+        }
     }
 }
 
@@ -298,7 +297,8 @@ impl LocalMonitor {
         }
 
         let changed_pix = to_write.len();
-        let (write_script, code_line) = self.gen_draw_opt_cursor_long_str(to_write, true);
+        let mut write_script = String::new();
+        let code_line = self.gen_draw_opt_cursor_long_str(&mut write_script, to_write, true);
 
         exec(&write_script).await?;
         debug::show_str(&format!(
@@ -320,7 +320,8 @@ impl LocalMonitor {
         }
 
         let changed_pix = to_write.len();
-        let (write_script, code_line) = self.gen_draw_opt_clear(bg_color);
+        let mut write_script = String::new();
+        let code_line = self.gen_draw_opt_clear(&mut write_script, bg_color);
 
         exec(&write_script).await?;
         debug::show_str(&format!(
@@ -335,29 +336,29 @@ impl LocalMonitor {
     }
     /// # Safety
     /// the script must be execed
-    pub unsafe fn sync_script(&mut self) -> (String, usize) {
+    pub unsafe fn sync_script(&mut self, script: &mut String) -> usize {
         let to_write: Vec<(usize, usize, AsIfPixel)> = self.gen_nonsynced();
 
         if to_write.is_empty() {
-            return (String::new(), 0);
+            return 0;
         }
-        let (write_script, code_line) = self.gen_draw_opt_cursor_long_str(to_write, true);
+        let code_line = self.gen_draw_opt_cursor_long_str(script, to_write, true);
 
         self.last_sync = self.data.clone();
-        (write_script, code_line)
+        code_line
     }
     /// # Safety
     /// the script must be execed
-    pub unsafe fn sync_clear_script(&mut self, bg_color: ColorId) -> (String, usize) {
+    pub unsafe fn sync_clear_script(&mut self, script: &mut String, bg_color: ColorId) -> usize {
         let to_write: Vec<(usize, usize, AsIfPixel)> = self.gen_nonsynced();
 
         if to_write.is_empty() {
-            return (String::new(), 0);
+            return 0;
         }
 
-        let (write_script, code_line) = self.gen_draw_opt_clear(bg_color);
+        let code_line = self.gen_draw_opt_clear(script, bg_color);
 
         self.last_sync = self.data.clone();
-        (write_script, code_line)
+        code_line
     }
 }

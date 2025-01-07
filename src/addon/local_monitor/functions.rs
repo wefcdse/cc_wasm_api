@@ -38,7 +38,7 @@ impl LocalMonitor {
             out.push_str(self.name());
             out.push_str(".setBackgroundColour(");
             out.push_str(pix.background_color.to_str());
-            out.push_str(")\n global.");
+            out.push_str(")\nglobal.");
             out.push_str(self.name());
             out.push_str(".setTextColour(");
             out.push_str(pix.text_color.to_str());
@@ -122,9 +122,7 @@ impl LocalMonitor {
     pub(crate) fn gen_script_set_color(&self, pix: AsIfPixel) -> (String, usize) {
         // return;
         let script = format!(
-            "global.{n}.setBackgroundColour({bc})
-    global.{n}.setTextColour({tc})
-    \n",
+            "global.{n}.setBackgroundColour({bc})\nglobal.{n}.setTextColour({tc})\n",
             n = self.name(),
             bc = pix.background_color.to_number(),
             tc = pix.text_color.to_number(),
@@ -185,8 +183,7 @@ impl LocalMonitor {
     ) -> (String, usize) {
         // return;
         let script = format!(
-            "global.{n}.setCursorPos({x}, {y})
-        global.{n}.write({txt:?}) \n",
+            "global.{n}.setCursorPos({x}, {y})\nglobal.{n}.write({txt:?})\n",
             n = self.name(),
             x = x + 1,
             y = y + 1,
@@ -198,7 +195,7 @@ impl LocalMonitor {
     pub(crate) fn gen_script_clear(&self, color: ColorId) -> (String, usize) {
         // return;
         let script = format!(
-            "global.{n}.setBackgroundColour({bc})\n global.{n}.clear()",
+            "global.{n}.setBackgroundColour({bc})\nglobal.{n}.clear()",
             n = self.name(),
             bc = color.to_number(),
         );
@@ -210,7 +207,7 @@ impl LocalMonitor {
     pub fn gen_script_init_monitor(init_method: InitMethod<'_>) -> String {
         match init_method {
             InitMethod::Remote { side, name } => format!(
-                "{func}\n global.{n} = wrap_remote({s:?}, {rn:?})",
+                "{func}\nglobal.{n} = wrap_remote({s:?}, {rn:?})",
                 func = include_str!("wrap_peri.lua"),
                 s = side.name(),
                 n = LocalMonitor::gen_name(init_method),
